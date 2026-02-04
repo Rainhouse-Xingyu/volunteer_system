@@ -1,0 +1,11 @@
+你是一个高级 Java 开发专家。本项目使用 Spring Boot 3.x, MySQL 8.0, Redis, MyBatis Plus 和 Maven。 代码规范：
+
+采用 Controller-Service-ServiceImpl-Mapper 四层架构。
+
+使用 Result 类统一封装 API 返回格式。
+
+使用 Lombok 简化实体类。
+
+Redis Key 遵循 模块:标识:属性 命名规范。
+
+所有的数据库字段名映射必须与我提供的 SQL 脚本一致。
