@@ -1,8 +1,11 @@
 package com.volunteer.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.volunteer.interceptor.LoginInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -17,6 +20,9 @@ public class WebConfig implements WebMvcConfigurer {
     
     @Autowired
     private LoginInterceptor loginInterceptor;
+
+    @Autowired
+    private ObjectMapper objectMapper;
     
     // 白名单接口，不需要登录即可访问
     private static final List<String> WHITELIST = Arrays.asList(
@@ -34,5 +40,21 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(loginInterceptor)
                 .addPathPatterns("/**") // 拦截所有请求
                 .excludePathPatterns(WHITELIST); // 排除白名单
+    }
+
+    /**
+     * 扩展消息转换器，确保使用我们自定义的 objectMapper
+     */
+    @Override
+    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        // 查找并替换默认的 Jackson 转换器，或者直接添加在最前面
+        for (int i = 0; i < converters.size(); i++) {
+            if (converters.get(i) instanceof MappingJackson2HttpMessageConverter) {
+                converters.set(i, new MappingJackson2HttpMessageConverter(objectMapper));
+                return;
+            }
+        }
+        // 如果没找到（不太可能），则添加到最前面
+        converters.add(0, new MappingJackson2HttpMessageConverter(objectMapper));
     }
 }

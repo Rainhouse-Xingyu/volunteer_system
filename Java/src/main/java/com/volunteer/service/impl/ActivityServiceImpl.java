@@ -59,26 +59,16 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         if (!result) {
             throw new ServiceException("活动发布失败");
         }
-
-        // 4. 将活动名额存入 Redis (Key: activity:quota:{activityId})
-        String quotaKey = ACTIVITY_QUOTA_PREFIX + activity.getActivityId();
-        try {
-            redisTemplate.opsForValue().set(quotaKey, activity.getQuota());
-        } catch (Exception e) {
-            // Redis 操作失败，为了数据一致性，建议抛出异常回滚数据库
-            throw new ServiceException("系统异常：活动名额缓存失败");
-        }
+        
+        // 4. (已移除) 活动发布时不再初始化 Redis 名额，需等待管理员审核通过后初始化
     }
 
     @Override
     @Cacheable(value = "activities", key = "'page:' + #current", condition = "#current == 1")
     public IPage<Activity> getPublishedActivities(int current, int size) {
         Page<Activity> page = new Page<>(current, size);
-        LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
-        // 查询状态为 1 (已发布) 的活动
-        queryWrapper.eq(Activity::getStatus, 1)
-                    .orderByDesc(Activity::getCreatedAt);
-        return this.page(page, queryWrapper);
+        // 使用 Mapper 自定义 SQL 查询，确保严格过滤 status = 1
+        return baseMapper.selectPublishedActivities(page);
     }
 
     @Override
@@ -134,5 +124,38 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         redisTemplate.opsForValue().set(checkInKey, activityId, 60, TimeUnit.SECONDS);
 
         return signToken;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void auditActivity(Integer activityId, Integer status) {
+        // 1. 获取活动
+        Activity activity = this.getById(activityId);
+        if (activity == null) {
+            throw new ServiceException("活动不存在");
+        }
+
+        // 2. 安全性校验：如果活动已经是 已发布(1) 状态，禁止重复审核通过，防止名额重置
+        if (Integer.valueOf(1).equals(activity.getStatus()) && Integer.valueOf(1).equals(status)) {
+             throw new ServiceException("活动已发布，请勿重复审核，防止名额重置");
+        }
+
+        // 3. 更新数据库状态
+        activity.setStatus(status);
+        boolean updateResult = this.updateById(activity);
+        if (!updateResult) {
+            throw new ServiceException("审核状态更新失败");
+        }
+
+        // 4. 如果审核通过 (status=1)，初始化 Redis 库存
+        if (Integer.valueOf(1).equals(status)) {
+            String quotaKey = ACTIVITY_QUOTA_PREFIX + activity.getActivityId();
+            try {
+                // 使用 StringRedisTemplate 写入，确保 decrement 操作兼容性
+                stringRedisTemplate.opsForValue().set(quotaKey, String.valueOf(activity.getQuota()));
+            } catch (Exception e) {
+                throw new ServiceException("系统异常：名额初始化失败");
+            }
+        }
     }
 }

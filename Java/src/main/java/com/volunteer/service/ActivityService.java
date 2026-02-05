@@ -40,5 +40,12 @@ public interface ActivityService extends IService<Activity> {
      * @return 签到Token
      */
     String generateSignToken(Integer activityId, Integer organizerId);
+
+    /**
+     * 审核活动
+     * @param activityId 活动ID
+     * @param status 状态 (1:通过, 4:失败)
+     */
+    void auditActivity(Integer activityId, Integer status);
 }
 

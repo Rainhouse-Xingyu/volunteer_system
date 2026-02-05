@@ -51,6 +51,16 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     @Transactional(rollbackFor = Exception.class)
     public void register(Integer activityId, Integer userId) {
         String quotaKey = ACTIVITY_QUOTA_PREFIX + activityId;
+
+        // 检查 Redis 中是否存在 Key，如果不存在，则从数据库同步
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(quotaKey))) {
+            Activity activity = activityMapper.selectById(activityId);
+            if (activity != null) {
+                int remaining = activity.getQuota() - activity.getCurrentParticipants();
+                // 使用 setIfAbsent 避免并发覆盖，且只有当名额 > 0 时才有意义（但为了防止缓存穿透，<=0 也设为0）
+                redisTemplate.opsForValue().setIfAbsent(quotaKey, Math.max(remaining, 0));
+            }
+        }
         
         // 1. Redis 原子性递减 (预减库存)
         Long stock = redisTemplate.opsForValue().decrement(quotaKey);
@@ -87,7 +97,7 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
             Registration registration = new Registration();
             registration.setActivityId(activityId);
             registration.setVolunteerId(userId);
-            registration.setRegStatus(1); // 默认 1-已录取
+            registration.setRegStatus(0); // 默认 0-待审核
             this.save(registration);
 
             // 2.3 乐观锁更新活动表当前人数
@@ -233,6 +243,7 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void checkIn(Integer activityId, String signToken, Integer userId) {
         // 1. 校验 Token 时效性
         String redisKey = "activity:sign_token:" + activityId;
@@ -254,6 +265,12 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         }
         
         // 3. 校验状态 (必须是已录取 status=1)
+        if (registration.getRegStatus() == 0) {
+            throw new ServiceException("您的报名尚未经过审核，请联系组织者");
+        }
+        if (registration.getRegStatus() == 2) {
+            throw new ServiceException("您的报名已被拒绝，无法参加本次活动");
+        }
         if (registration.getRegStatus() != 1) {
             throw new ServiceException("您未被该活动录用，无法签到");
         }
@@ -354,17 +371,19 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         registration.setRegStatus(targetStatus);
         registrationMapper.updateById(registration);
 
-        // 4. 特殊处理：如果状态改为 2 (拒绝)，且之前是占用名额的状态 (如 1-已录取)，需要回补库存
-        // 假设原本设计是 register 时直接就占用了库存(status=1)。
+        // 4. 拒绝逻辑：回滚库存
+        // 只有当变更为“已拒绝 (2)”且原状态为“已录取 (1)”时，才释放名额
         if (targetStatus == 2 && oldStatus == 1) {
-             // 4.1 回补 Redis
-             redisTemplate.opsForValue().increment(ACTIVITY_QUOTA_PREFIX + activity.getActivityId());
+             // 4.1 Redis 库存 +1
+             String quotaKey = ACTIVITY_QUOTA_PREFIX + activity.getActivityId();
+             redisTemplate.opsForValue().increment(quotaKey);
              
-             // 4.2 回补 数据库 count (保持一致)
+             // 4.2 数据库 current_participants -1
              UpdateWrapper<Activity> updateWrapper = new UpdateWrapper<>();
              updateWrapper.setSql("current_participants = current_participants - 1")
                           .eq("activity_id", activity.getActivityId())
-                          .gt("current_participants", 0); // 保护一下防止减成负数
+                          // 只有大于0才减，兜底防止负数
+                          .gt("current_participants", 0);
              activityMapper.update(null, updateWrapper);
         }
         // 如果是从 2(拒绝) 改回 1(录取)? 用户需求没说，暂不处理复杂的反向回滚逻辑，尽量简化。
