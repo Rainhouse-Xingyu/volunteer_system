@@ -1,5 +1,7 @@
 package com.volunteer.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -8,7 +10,9 @@ import com.volunteer.entity.Activity;
 import com.volunteer.entity.Registration;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.ActivityMapper;
+import com.volunteer.mapper.NotificationMapper;
 import com.volunteer.mapper.RegistrationMapper;
+import com.volunteer.entity.Notification;
 import com.volunteer.service.RegistrationService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +47,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     
     @Autowired
     private com.volunteer.mapper.UserMapper userMapper;
+
+    @Autowired
+    private NotificationMapper notificationMapper;
 
     private static final String ACTIVITY_QUOTA_PREFIX = "activity:quota:";
     private static final String ACTIVITY_USERS_PREFIX = "activity:users:";
@@ -161,32 +168,10 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     }
 
     @Override
-    public List<RegistrationDTO> getMyRegistrations(Integer userId) {
-        // 1. 查询报名表
-        LambdaQueryWrapper<Registration> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Registration::getVolunteerId, userId)
-                   .orderByDesc(Registration::getRegId);
-        List<Registration> list = this.list(queryWrapper);
-        
-        if (list.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // 2. 组装 DTO，填充活动信息
-        return list.stream().map(reg -> {
-            RegistrationDTO dto = new RegistrationDTO();
-            BeanUtils.copyProperties(reg, dto);
-            
-            // 查询活动详情 (这里也可以优化为批量查询)
-            Activity activity = activityMapper.selectById(reg.getActivityId());
-            if (activity != null) {
-                dto.setActivityTitle(activity.getTitle());
-                dto.setLocation(activity.getLocation());
-                dto.setStartTime(activity.getStartTime());
-                dto.setEndTime(activity.getEndTime());
-            }
-            return dto;
-        }).collect(Collectors.toList());
+    public IPage<RegistrationDTO> getMyRegistrations(int current, int size, Integer userId) {
+        // 使用 Mapper 自定义关联查询，一步到位获取 Activity 信息
+        Page<RegistrationDTO> page = new Page<>(current, size);
+        return baseMapper.selectMyRegistrations(page, userId);
     }
 
     /**
@@ -367,6 +352,17 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
             return; // 状态未变更，直接返回
         }
 
+
+        // 插入通知
+        Notification notification = new Notification();
+        notification.setSenderId(0);
+        notification.setReceiverId(registration.getVolunteerId());
+        notification.setTitle("活动报名结果提醒");
+        String statusStr = (targetStatus == 1) ? "已通过" : "被拒绝";
+        notification.setContent("您报名的活动【" + activity.getTitle() + "】" + statusStr + "，请进入个人中心查看");
+        notification.setType("通知");
+        notification.setCreatedAt(java.time.LocalDateTime.now());
+        notificationMapper.insert(notification);
         // 3. 更新状态
         registration.setRegStatus(targetStatus);
         registrationMapper.updateById(registration);

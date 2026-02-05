@@ -23,11 +23,13 @@ public interface RegistrationService extends IService<Registration> {
     void cancelRegistration(Integer activityId, Integer userId);
 
     /**
-     * 获取用户的报名列表
+     * 获取用户的报名列表 (分页)
+     * @param current 当前页
+     * @param size 每页大小
      * @param userId 用户ID
-     * @return 报名列表
+     * @return 分页结果
      */
-    java.util.List<com.volunteer.dto.RegistrationDTO> getMyRegistrations(Integer userId);
+    com.baomidou.mybatisplus.core.metadata.IPage<com.volunteer.dto.RegistrationDTO> getMyRegistrations(int current, int size, Integer userId);
     
     /**
      * 初始化/重置活动库存 (辅助方法，用于测试或数据同步)

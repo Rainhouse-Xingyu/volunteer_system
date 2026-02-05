@@ -78,24 +78,28 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         redisTemplate.delete(redisKey);
     }
 
+    @Autowired
+    private com.volunteer.mapper.UserMapper userMapper;
+
     @Override
     public VolunteerProfile getProfile(Integer userId) {
-        // 1. 从 Redis 查询
-        String redisKey = USER_PROFILE_KEY_PREFIX + userId;
-        Object profileObj = redisTemplate.opsForValue().get(redisKey);
-        
-        if (profileObj != null) {
-            return (VolunteerProfile) profileObj;
-        }
-        
-        // 2. 如果 Redis 没数据，查询数据库
+        // 1. 先查 profile 表 (基础信息，姓名、学号等)
         VolunteerProfile profile = this.getById(userId);
-        
-        // 3. 查询到数据后写入 Redis
-        if (profile != null) {
-            redisTemplate.opsForValue().set(redisKey, profile);
+        if (profile == null) {
+            // 如果只有账号没填资料，可能返回空，需要初始化一个空对象
+            profile = new VolunteerProfile();
+            profile.setUserId(userId);
         }
         
+        // 2. 查 user 表 (积分、信用)
+        com.volunteer.entity.User user = userMapper.selectById(userId);
+        if (user != null) {
+            // 将 Users 表中的数据填充到 Profile DTO 中返回
+            profile.setPoints(user.getPoints());
+            profile.setCreditScore(user.getCreditScore());
+        }
+        
+        // 暂停 Redis 缓存逻辑，因为涉及多表组装，且分数变动频繁
         return profile;
     }
 }

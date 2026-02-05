@@ -67,18 +67,20 @@ public class VolunteerController {
     }
 
     /**
-     * 获取我的报名列表
-     * @param request HTTP请求
-     * @return 报名列表
+     * 我的活动记录
+     * GET /api/volunteer/my-registrations
+     * 返回字段：活动标题、活动时间、我的报名状态、我的签到状态
      */
-    @GetMapping("/activities")
-    public Result<List<RegistrationDTO>> getMyActivities(HttpServletRequest request) {
+    @GetMapping("/my-registrations")
+    public Result<Object> getMyRegistrations(@RequestParam(defaultValue = "1") int current,
+                                             @RequestParam(defaultValue = "10") int size,
+                                             HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         if (currentUser == null) {
             return Result.error(401, "用户信息异常");
         }
         
-        return Result.success(registrationService.getMyRegistrations(currentUser.getUserId()));
+        return Result.success(registrationService.getMyRegistrations(current, size, currentUser.getUserId()));
     }
 
     /**

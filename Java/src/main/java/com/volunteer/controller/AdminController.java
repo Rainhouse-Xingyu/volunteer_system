@@ -4,6 +4,7 @@ import com.volunteer.annotation.RequireRole;
 import com.volunteer.common.Result;
 import com.volunteer.service.ActivityService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,6 +25,7 @@ public class AdminController {
      * @param param { "activityId": 123, "result": 1 }
      */
     @RequireRole("admin")
+    @CacheEvict(value = "activities", allEntries = true)
     @PutMapping("/activity/audit")
     public Result<Void> auditActivity(@RequestBody Map<String, Object> param) {
         if (!param.containsKey("activityId") || !param.containsKey("result")) {
