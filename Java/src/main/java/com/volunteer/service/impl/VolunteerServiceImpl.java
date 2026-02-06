@@ -1,10 +1,13 @@
 package com.volunteer.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.volunteer.entity.User;
 import com.volunteer.entity.VolunteerProfile;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.VolunteerProfileMapper;
+import com.volunteer.mapper.UserMapper;
 import com.volunteer.service.VolunteerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -22,6 +26,9 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private UserMapper userMapper;
 
     // 手机号正则校验
     private static final String PHONE_REGEX = "^1[3-9]\\d{9}$";
@@ -78,9 +85,6 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         redisTemplate.delete(redisKey);
     }
 
-    @Autowired
-    private com.volunteer.mapper.UserMapper userMapper;
-
     @Override
     public VolunteerProfile getProfile(Integer userId) {
         // 1. 先查 profile 表 (基础信息，姓名、学号等)
@@ -101,5 +105,40 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         
         // 暂停 Redis 缓存逻辑，因为涉及多表组装，且分数变动频繁
         return profile;
+    }
+
+    @Override
+    public Map<String, Object> getLeaderboard(Integer userId) {
+        // 1. Get Top 10
+        Page<User> page = new Page<>(1, 10);
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getRole, "volunteer")
+                    .orderByDesc(User::getPoints);
+        
+        // 优化：只查需要的某些字段
+        queryWrapper.select(User::getUserId, User::getUsername, User::getPoints, User::getCreditScore);
+        
+        Page<User> userPage = userMapper.selectPage(page, queryWrapper);
+        List<User> topList = userPage.getRecords();
+        
+        // 2. Get My Rank
+        User me = userMapper.selectById(userId);
+        Integer myRank = 0;
+        Integer myPoints = 0;
+        
+        if (me != null) {
+            myPoints = (me.getPoints() == null) ? 0 : me.getPoints();
+            // Count users with more points
+            // userMapper must have countRank method
+            myRank = userMapper.countRank(myPoints);
+        }
+        
+        // 3. Assemble Result
+        Map<String, Object> result = new HashMap<>();
+        result.put("leaderboard", topList);
+        result.put("myRank", myRank);
+        result.put("myPoints", myPoints);
+        
+        return result;
     }
 }

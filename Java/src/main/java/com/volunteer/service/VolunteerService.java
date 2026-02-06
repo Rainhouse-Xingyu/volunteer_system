@@ -2,6 +2,7 @@ package com.volunteer.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.volunteer.entity.VolunteerProfile;
+import java.util.Map;
 
 /**
  * 志愿者服务接口
@@ -21,4 +22,11 @@ public interface VolunteerService extends IService<VolunteerProfile> {
      * @return 志愿者资料
      */
     VolunteerProfile getProfile(Integer userId);
+
+    /**
+     * 获取积分排行榜
+     * @param userId Current user ID
+     * @return Leaderboard data
+     */
+    Map<String, Object> getLeaderboard(Integer userId);
 }

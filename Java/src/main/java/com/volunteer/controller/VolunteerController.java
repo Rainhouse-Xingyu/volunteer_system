@@ -11,6 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Map;
+
+import com.volunteer.entity.Notification;
+import com.volunteer.service.NotificationService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 /**
  * 志愿者控制器
@@ -24,6 +30,9 @@ public class VolunteerController {
 
     @Autowired
     private RegistrationService registrationService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -115,5 +124,54 @@ public class VolunteerController {
         // 如果 dto 为 null，说明未报名。具体返回逻辑视前端需求而定。
         // 这里返回 null data，前端根据 null 判定为“未报名”状态
         return Result.success(dto);
+    }
+
+    /**
+     * 积分排行榜
+     * GET /volunteer/leaderboard
+     * 返回：Top 10 用户列表 + 当前用户排名
+     */
+    @GetMapping("/leaderboard")
+    public Result<Map<String, Object>> getLeaderboard(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "用户信息异常");
+        }
+        
+        return Result.success(volunteerService.getLeaderboard(currentUser.getUserId()));
+    }
+
+    /**
+     * 获取我的通知列表
+     * @param current 页码
+     * @param size 每页数量
+     */
+    @GetMapping("/notifications")
+    public Result<IPage<Notification>> getMyNotifications(@RequestParam(defaultValue = "1") int current,
+                                                          @RequestParam(defaultValue = "10") int size,
+                                                          HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        
+        Page<Notification> page = new Page<>(current, size);
+        IPage<Notification> result = notificationService.getMyNotifications(page, currentUser.getUserId());
+        return Result.success(result);
+    }
+
+    /**
+     * 标记通知为已读
+     * @param noticeId 通知ID
+     */
+    @PutMapping("/notifications/{noticeId}/read")
+    public Result<Void> markAsRead(@PathVariable Integer noticeId, HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        
+        notificationService.markAsRead(noticeId, currentUser.getUserId());
+        return Result.success();
     }
 }

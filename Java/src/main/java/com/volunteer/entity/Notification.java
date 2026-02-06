@@ -51,6 +51,11 @@ public class Notification implements Serializable {
     private String type;
 
     /**
+     * 是否已读: 0未读, 1已读
+     */
+    private Integer isRead;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

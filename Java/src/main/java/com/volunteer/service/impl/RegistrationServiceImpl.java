@@ -10,9 +10,9 @@ import com.volunteer.entity.Activity;
 import com.volunteer.entity.Registration;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.ActivityMapper;
-import com.volunteer.mapper.NotificationMapper;
 import com.volunteer.mapper.RegistrationMapper;
 import com.volunteer.entity.Notification;
+import com.volunteer.service.NotificationService;
 import com.volunteer.service.RegistrationService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +49,7 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     private com.volunteer.mapper.UserMapper userMapper;
 
     @Autowired
-    private NotificationMapper notificationMapper;
+    private NotificationService notificationService;
 
     private static final String ACTIVITY_QUOTA_PREFIX = "activity:quota:";
     private static final String ACTIVITY_USERS_PREFIX = "activity:users:";
@@ -188,6 +188,7 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void checkIn(String signToken, Integer userId) {
         // 1. 校验 signToken 有效性 (Redis)
         String redisKey = "activity:sign:" + signToken;
@@ -225,6 +226,11 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         registration.setCheckInTime(java.time.LocalDateTime.now());
         
         registrationMapper.updateById(registration);
+
+        // 6. 增加积分 (10分)
+        UpdateWrapper<com.volunteer.entity.User> userUpdate = new UpdateWrapper<>();
+        userUpdate.setSql("points = ifnull(points, 0) + 10").eq("user_id", userId);
+        userMapper.update(null, userUpdate);
     }
 
     @Override
@@ -270,6 +276,11 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         registration.setCheckInTime(java.time.LocalDateTime.now());
         
         registrationMapper.updateById(registration);
+
+        // 6. 增加积分 (10分)
+        UpdateWrapper<com.volunteer.entity.User> userUpdate = new UpdateWrapper<>();
+        userUpdate.setSql("points = ifnull(points, 0) + 10").eq("user_id", userId);
+        userMapper.update(null, userUpdate);
     }
 
     @Override
@@ -354,15 +365,10 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
 
 
         // 插入通知
-        Notification notification = new Notification();
-        notification.setSenderId(0);
-        notification.setReceiverId(registration.getVolunteerId());
-        notification.setTitle("活动报名结果提醒");
         String statusStr = (targetStatus == 1) ? "已通过" : "被拒绝";
-        notification.setContent("您报名的活动【" + activity.getTitle() + "】" + statusStr + "，请进入个人中心查看");
-        notification.setType("通知");
-        notification.setCreatedAt(java.time.LocalDateTime.now());
-        notificationMapper.insert(notification);
+        String content = "您报名的活动【" + activity.getTitle() + "】" + statusStr + "，请进入个人中心查看";
+        notificationService.sendNotice(registration.getVolunteerId(), "活动报名结果提醒", content, "通知");
+
         // 3. 更新状态
         registration.setRegStatus(targetStatus);
         registrationMapper.updateById(registration);
