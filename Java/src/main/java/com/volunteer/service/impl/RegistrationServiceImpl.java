@@ -227,10 +227,11 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        // 6. 增加积分 (10分)
-        UpdateWrapper<com.volunteer.entity.User> userUpdate = new UpdateWrapper<>();
-        userUpdate.setSql("points = ifnull(points, 0) + 10").eq("user_id", userId);
-        userMapper.update(null, userUpdate);
+        // 6. 增加积分 (10分) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
+        profileUpdate.setSql("points = ifnull(points, 0) + 10, credit_score = ifnull(credit_score, 100) + 1")
+                     .eq("user_id", userId);
+        volunteerProfileMapper.update(null, profileUpdate);
     }
 
     @Override
@@ -277,10 +278,11 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        // 6. 增加积分 (10分)
-        UpdateWrapper<com.volunteer.entity.User> userUpdate = new UpdateWrapper<>();
-        userUpdate.setSql("points = ifnull(points, 0) + 10").eq("user_id", userId);
-        userMapper.update(null, userUpdate);
+        // 6. 增加积分 (10分) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
+        profileUpdate.setSql("points = ifnull(points, 0) + 10, credit_score = ifnull(credit_score, 100) + 1")
+                     .eq("user_id", userId);
+        volunteerProfileMapper.update(null, profileUpdate);
     }
 
     @Override

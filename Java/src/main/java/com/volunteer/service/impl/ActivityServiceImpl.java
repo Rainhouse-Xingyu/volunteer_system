@@ -72,6 +72,36 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
     }
 
     @Override
+    public IPage<Activity> searchActivities(int current, int size, String keyword, Integer status) {
+        Page<Activity> page = new Page<>(current, size);
+        LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 动态条件
+        if (status != null) {
+            queryWrapper.eq(Activity::getStatus, status);
+        } else {
+            // 默认只查招募中(1)或进行中(2)或已结束(3) -> 对用户可见的状态
+            // 但如果 status 传了 null，通常是搜索页，我们默认只展示发布的
+            queryWrapper.in(Activity::getStatus, 1, 2, 3); 
+        }
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            queryWrapper.and(wrapper -> 
+                wrapper.like(Activity::getTitle, keyword)
+                       .or()
+                       .like(Activity::getContent, keyword)
+                       .or()
+                       .like(Activity::getLocation, keyword)
+            );
+        }
+        
+        // 按时间倒序
+        queryWrapper.orderByDesc(Activity::getCreatedAt);
+        
+        return this.page(page, queryWrapper);
+    }
+
+    @Override
     public Activity getActivityDetail(Integer activityId) {
         String key = ACTIVITY_DETAIL_PREFIX + activityId;
 

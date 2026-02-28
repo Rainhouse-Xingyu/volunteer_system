@@ -7,6 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
+import com.volunteer.service.UserService;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.web.bind.annotation.*;
+import com.volunteer.entity.User;
+
 import java.util.Map;
 
 /**
@@ -18,6 +24,40 @@ public class AdminController {
 
     @Autowired
     private ActivityService activityService;
+
+    @Autowired
+    private UserService userService;
+
+    /**
+     * 获取用户列表（带分页和角色筛选）
+     * GET /admin/users?current=1&size=10&role=volunteer
+     */
+    @RequireRole("admin")
+    @GetMapping("/users")
+    public Result<IPage<User>> getUserList(@RequestParam(defaultValue = "1") int current,
+                                           @RequestParam(defaultValue = "10") int size,
+                                           @RequestParam(required = false) String role) {
+        Page<User> page = new Page<>(current, size);
+        return Result.success(userService.getUserList(page, role));
+    }
+
+    /**
+     * 更新用户状态（禁用/启用）
+     * PUT /admin/user/status
+     */
+    @RequireRole("admin")
+    @PutMapping("/user/status")
+    public Result<Void> updateUserStatus(@RequestBody Map<String, Object> param) {
+        if (!param.containsKey("userId") || !param.containsKey("status")) {
+            return Result.error(400, "参数缺失");
+        }
+
+        Integer userId = Integer.valueOf(param.get("userId").toString());
+        Integer status = Integer.valueOf(param.get("status").toString());
+
+        userService.updateUserStatus(userId, status);
+        return Result.success();
+    }
 
     /**
      * 活动审核

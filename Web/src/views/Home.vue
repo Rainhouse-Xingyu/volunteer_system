@@ -1,10 +1,6 @@
 <template>
   <div class="home-container">
-    <van-nav-bar title="最新活动" fixed placeholder>
-      <template #right>
-        <van-icon name="user-circle-o" size="24" @click="toProfile" />
-      </template>
-    </van-nav-bar>
+    <van-nav-bar title="志愿者活动" fixed placeholder />
 
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <van-list
@@ -13,54 +9,51 @@
         finished-text="没有更多了"
         @load="onLoad"
       >
-        <div class="activity-list">
-          <van-card
-            v-for="item in list"
-            :key="item.activityId"
-            :title="item.title"
-            :thumb="item.coverImg || 'https://fastly.jsdelivr.net/npm/@vant/assets/ipad.jpeg'"
+        <div class="activity-grid">
+          <div 
+            v-for="item in list" 
+            :key="item.activityId" 
+            class="activity-col"
             @click="toDetail(item.activityId)"
           >
-            <template #desc>
-              <div class="card-desc">
-                <div class="desc-row">
-                  <van-icon name="location-o" /> {{ item.location }}
-                </div>
-                <div class="desc-row">
-                  <van-icon name="clock-o" /> {{ formatTime(item.startTime) }}
+            <div 
+              class="activity-card" 
+              :class="{ 'is-full': isFull(item) }"
+            >
+              <div class="card-image-wrapper">
+                <img 
+                  :src="item.coverImg || defaultImg" 
+                  class="card-image" 
+                  alt="活动封面"
+                />
+                <div v-if="isFull(item)" class="full-mask">
+                  <span>已满员</span>
                 </div>
               </div>
-            </template>
-            
-            <template #tags>
-              <div class="card-tags">
-                <van-tag plain type="primary" style="margin-right: 5px;">
-                  {{ getStatusText(item.status) }}
-                </van-tag>
-                <van-tag plain type="warning">
-                  剩余: {{ (item.quota || 0) - (item.currentParticipants || 0) }}
-                </van-tag>
+              
+              <div class="card-content">
+                <div class="card-title van-multi-ellipsis--l2">
+                  {{ item.title }}
+                </div>
+                
+                <div class="card-info">
+                  <div class="location-row">
+                    <van-icon name="location-o" class="location-icon" />
+                    <span class="location-text van-ellipsis">{{ item.location }}</span>
+                  </div>
+                  
+                  <div class="tags-row">
+                    <van-tag 
+                      plain 
+                      :type="isFull(item) ? 'default' : 'primary'"
+                    >
+                      剩余: {{ getRemaining(item) }}
+                    </van-tag>
+                  </div>
+                </div>
               </div>
-            </template>
-
-            <template #footer>
-              <van-button 
-                size="mini" 
-                type="primary" 
-                @click.stop="onRegister(item.activityId)"
-                v-if="item.status === 1"
-              >
-                立即报名
-              </van-button>
-              <van-button 
-                size="mini" 
-                disabled 
-                v-else
-              >
-                {{ getStatusText(item.status) }}
-              </van-button>
-            </template>
-          </van-card>
+            </div>
+          </div>
         </div>
       </van-list>
     </van-pull-refresh>
@@ -70,102 +63,76 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { showToast, showLoadingToast, closeToast, showSuccessToast } from 'vant';
 import request from '@/utils/request';
 
 const router = useRouter();
+const defaultImg = 'https://fastly.jsdelivr.net/npm/@vant/assets/ipad.jpeg';
+
 const list = ref([]);
 const loading = ref(false);
 const finished = ref(false);
 const refreshing = ref(false);
-const currentPage = ref(0); 
+const currentPage = ref(1);
 const pageSize = 10;
 
-// 状态字典
-const statusMap = {
-  0: '待审核',
-  1: '招募中',
-  2: '进行中',
-  3: '已结束',
-  4: '审核失败'
+const isFull = (item) => {
+  return (item.currentParticipants || 0) >= (item.quota || 0);
 };
 
-const getStatusText = (status) => statusMap[status] || '未知';
-
-// 简单的时间格式化
-const formatTime = (timeStr) => {
-  if (!timeStr) return '';
-  return timeStr.replace('T', ' ').substring(0, 16);
+const getRemaining = (item) => {
+  const remain = (item.quota || 0) - (item.currentParticipants || 0);
+  return remain > 0 ? remain : 0;
 };
 
-// 加载数据
 const onLoad = async () => {
-  currentPage.value++;
   if (refreshing.value) {
     list.value = [];
     refreshing.value = false;
-    currentPage.value = 1;
   }
 
   try {
     const res = await request.get('/activity/list', {
       params: {
         current: currentPage.value,
-        size: pageSize
+        size: pageSize,
       }
     });
+
+    const data = res.data?.records || [];
     
-    const pageData = res.data || {};
-    const records = pageData.records || [];
-    
-    if (records.length < pageSize) {
-      finished.value = true;
-    }
-    
+    // 只有 status === 1 的活动才显示
+    // 如果后端不支持 status 参数过滤，我们在前端进行过滤
+    const validData = data.filter(item => item.status === 1);
+
     if (currentPage.value === 1) {
-      list.value = records;
+      list.value = validData;
     } else {
-      list.value = [...list.value, ...records];
+      list.value = [...list.value, ...validData];
+    }
+
+    loading.value = false;
+    
+    if (data.length < pageSize) {
+      finished.value = true;
+    } else {
+      currentPage.value++;
     }
   } catch (error) {
-    finished.value = true;
-  } finally {
     loading.value = false;
+    finished.value = true;
+    console.error('Failed to load activities:', error);
   }
 };
 
-// 下拉刷新
 const onRefresh = () => {
   finished.value = false;
   loading.value = true;
+  currentPage.value = 1;
   onLoad();
 };
 
-// 跳转详情
 const toDetail = (id) => {
   router.push(`/activity/${id}`);
-};
-
-// 个人中心
-const toProfile = () => {
-  router.push('/profile');
-};
-
-// 报名
-const onRegister = async (id) => {
-  showLoadingToast({
-    message: '报名中...',
-    forbidClick: true,
-  });
-  
-  try {
-    await request.post(`/activity/register/${id}`);
-    showSuccessToast('报名成功');
-    // 刷新列表更新数据
-    onRefresh();
-  } catch (error) {
-    // 错误已处理
-  }
 };
 </script>
 
@@ -176,48 +143,111 @@ const onRegister = async (id) => {
   padding-bottom: 20px;
 }
 
-.activity-list {
-  padding: 10px 0;
-}
-
-.van-card {
-  background-color: #ffffff;
-  margin: 10px 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-}
-
-.card-desc {
-  margin-top: 5px;
-  color: #666;
-  font-size: 12px;
-}
-
-.desc-row {
-  display: flex;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.desc-row .van-icon {
-  margin-right: 4px;
-}
-
-.card-tags {
-  margin-top: 8px;
+/* 瀑布流/双列布局 */
+.activity-grid {
   display: flex;
   flex-wrap: wrap;
+  padding: 10px;
+  justify-content: space-between;
 }
 
-:deep(.van-card__title) {
-  font-size: 16px;
-  font-weight: bold;
-  line-height: 20px;
-  margin-bottom: 5px;
+.activity-col {
+  width: 48%;
+  margin-bottom: 12px;
 }
 
-:deep(.van-card__thumb) {
-  border-radius: 4px;
+.activity-card {
+  background: #fff;
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-card:active {
+  transform: scale(0.95);
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 60%; /* Aspect Ratio control */
+  overflow: hidden;
+  background-color: #f0f0f0;
+}
+
+.card-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Full state styling */
+.activity-card.is-full .card-image {
+  filter: grayscale(100%);
+}
+
+.full-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 2px;
+  z-index: 1;
+}
+
+.card-content {
+  padding: 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #323233;
+  line-height: 20px;
+  margin-bottom: 8px;
+  height: 40px; /* Force 2 lines height approx */
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.location-row {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #969799;
+}
+
+.location-icon {
+  margin-right: 4px;
+  color: #c8c9cc;
+}
+
+.tags-row {
+  display: flex;
+  align-items: center;
 }
 </style>

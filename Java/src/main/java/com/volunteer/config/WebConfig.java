@@ -42,6 +42,14 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(WHITELIST); // 排除白名单
     }
 
+    @Override
+    public void addResourceHandlers(org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry registry) {
+        // 映射本地文件目录到 HTTP 路径
+        // 这里的路径 file:./uploads/ 对应 FileUploadController 中的默认路径
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:./uploads/");
+    }
+
     /**
      * 扩展消息转换器，确保使用我们自定义的 objectMapper
      */

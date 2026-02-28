@@ -9,6 +9,7 @@ import com.volunteer.service.RegistrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 
 /**
  * 活动控制器
@@ -162,14 +163,23 @@ public class ActivityController {
     }
 
     /**
-     * 分页查询已发布活动
-     * @param current 页码，默认1
-     * @param size 每页大小，默认10
+     * 分页查询已发布活动 (支持关键词搜索和状态筛选)
+     * GET /activity/list?current=1&size=10&keyword=义工&status=1
      */
     @GetMapping("/list")
-    public Result<Object> listActivities(@RequestParam(defaultValue = "1") int current, 
-                                         @RequestParam(defaultValue = "10") int size) {
-        return Result.success(activityService.getPublishedActivities(current, size));
+    public Result<IPage<com.volunteer.entity.Activity>> listActivities(
+            @RequestParam(defaultValue = "1") int current, 
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status) {
+        
+        if (keyword == null && status == null) {
+            // 默认查询
+            return Result.success(activityService.getPublishedActivities(current, size));
+        } else {
+            // 搜索查询
+            return Result.success(activityService.searchActivities(current, size, keyword, status));
+        }
     }
 
     /**

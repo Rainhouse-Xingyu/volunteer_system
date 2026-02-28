@@ -87,3 +87,38 @@ CREATE TABLE `violations` (
   `handler_id` INT COMMENT '操作管理员ID',
   `processed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE comments (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL COMMENT '评价人ID',
+    activity_id BIGINT NOT NULL COMMENT '活动ID',
+    score TINYINT NOT NULL DEFAULT 5 COMMENT '评分1-5星',
+    content TEXT COMMENT '评价内容',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) COMMENT '活动评价表';
+
+CREATE TABLE `notifications` (
+  `notice_id` INT AUTO_INCREMENT PRIMARY KEY,
+  `sender_id` INT DEFAULT 0 COMMENT '发送者ID(0代表系统管理员)',
+  `receiver_id` INT DEFAULT 0 COMMENT '接收者ID(0代表全平台公告)',
+  `title` VARCHAR(200) NOT NULL,
+  `content` TEXT NOT NULL,
+  `type` ENUM('info', 'system_msg', 'notice') DEFAULT 'info' COMMENT 'info:资讯, system_msg:系统通知, notice:公告',
+  `is_read` TINYINT(1) DEFAULT 0 COMMENT '是否已读(0:未读, 1:已读)', -- 建议增加
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE registrations ADD COLUMN checkin_status TINYINT DEFAULT 0 COMMENT '签到状态: 0-未签到, 1-已签到';
+ALTER TABLE registrations ADD COLUMN checkin_time DATETIME COMMENT '签到时间';
+
+UPDATE registrations SET reg_status = 0 WHERE activity_id = 101 AND volunteer_id = 10;
+ALTER TABLE registrations MODIFY COLUMN reg_status TINYINT DEFAULT 0 COMMENT '0:待审核, 1:已录用, 2:已拒绝';
+
+ALTER TABLE users 
+ADD COLUMN points INT DEFAULT 0 COMMENT '志愿者积分',
+ADD COLUMN credit_score INT DEFAULT 100 COMMENT '信用评分(满分100)',
+ADD COLUMN level VARCHAR(20) DEFAULT '初级志愿者' COMMENT '荣誉等级称号',
+ADD COLUMN bio VARCHAR(255) COMMENT '个人简介/座右铭';
+
+ALTER TABLE notifications
+ADD COLUMN is_read TINYINT(1) DEFAULT(0) COMMIT "是否已读(0:未读, 1:已读)"

@@ -27,6 +27,16 @@ public interface ActivityService extends IService<Activity> {
     IPage<Activity> getPublishedActivities(int current, int size);
 
     /**
+     * 搜索活动 (增强筛选)
+     * @param current 当前页
+     * @param size 页大小
+     * @param keyword 关键词(标题/内容/地点)
+     * @param status 状态
+     * @return 分页结果
+     */
+    IPage<Activity> searchActivities(int current, int size, String keyword, Integer status);
+
+    /**
      * 获取活动详情 (带缓存)
      * @param activityId 活动ID
      * @return 活动详情

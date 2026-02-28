@@ -41,15 +41,13 @@ public class VolunteerProfile implements Serializable {
     private String phone;
 
     /**
-     * 信用评分 (数据已迁移至 users 表，此处仅作为 DTO 字段返回)
+     * 信用评分
      */
-    @TableField(exist = false)
     private Integer creditScore;
 
     /**
-     * 志愿积分 (数据已迁移至 users 表，此处仅作为 DTO 字段返回)
+     * 志愿积分
      */
-    @TableField(exist = false)
     private Integer points;
 
     /**
