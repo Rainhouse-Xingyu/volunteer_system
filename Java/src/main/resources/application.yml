@@ -21,6 +21,10 @@ spring:
     username: root
     password: rootZAQ!2wsx
 
+# Knife4j 文档配置
+knife4j:
+  enable: true
+
   # Redis 配置
   data:
     redis:

@@ -42,13 +42,16 @@ public class WebConfig implements WebMvcConfigurer {
     // 白名单接口，不需要登录即可访问
     private static final List<String> WHITELIST = Arrays.asList(
             "/auth/login",
-            "/auth/register",  // 如果有注册接口
-            "/doc.html",       // 如果有 Swagger/Knife4j
+            "/auth/register",
+            "/doc.html",
             "/webjars/**",
             "/swagger-resources/**",
             "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/favicon.ico",
             "/error",
-            "/uploads/**"      // 允许访问上传的文件
+            "/uploads/**"
     );
     
     @Override
