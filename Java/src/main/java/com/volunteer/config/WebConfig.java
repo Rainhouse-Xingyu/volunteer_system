@@ -9,6 +9,11 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import jakarta.servlet.MultipartConfigElement;
+import org.springframework.boot.web.servlet.MultipartConfigFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.util.unit.DataSize;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,6 +22,16 @@ import java.util.List;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+    
+    @Bean
+    public MultipartConfigElement multipartConfigElement() {
+        MultipartConfigFactory factory = new MultipartConfigFactory();
+        // 设置单个文件最大值
+        factory.setMaxFileSize(DataSize.ofMegabytes(50)); 
+        // 设置总上传数据总大小
+        factory.setMaxRequestSize(DataSize.ofMegabytes(50));
+        return factory.createMultipartConfig();
+    }
     
     @Autowired
     private LoginInterceptor loginInterceptor;
@@ -32,7 +47,8 @@ public class WebConfig implements WebMvcConfigurer {
             "/webjars/**",
             "/swagger-resources/**",
             "/v3/api-docs/**",
-            "/error"
+            "/error",
+            "/uploads/**"      // 允许访问上传的文件
     );
     
     @Override

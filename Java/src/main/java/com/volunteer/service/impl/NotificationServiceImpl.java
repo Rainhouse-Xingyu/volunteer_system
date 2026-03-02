@@ -8,6 +8,7 @@ import com.volunteer.entity.Notification;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.NotificationMapper;
 import com.volunteer.service.NotificationService;
+import com.volunteer.websocket.WebSocketServer;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -30,6 +31,14 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         notification.setCreatedAt(LocalDateTime.now());
         
         this.baseMapper.insert(notification);
+        
+        // 推送 WebSocket 消息
+        // 如果是全平台广播 (0)，则广播；否则单推
+        if (receiverId == 0) {
+            WebSocketServer.broadcast(content);
+        } else {
+            WebSocketServer.sendMessage(String.valueOf(receiverId), content);
+        }
     }
 
     @Override

@@ -27,6 +27,7 @@ public class RegistrationDTO implements Serializable {
 
     // 志愿者信息 (关联查询补充)
     private String volunteerName; // 志愿者姓名
+    private String studentId;     // 学号
     private String phone;         // 手机号
     private String studentId;     // 学号
 }
