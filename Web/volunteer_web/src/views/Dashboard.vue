@@ -17,11 +17,14 @@
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="icon-wrapper time-icon">
-              <el-icon :size="24"><Timer /></el-icon>
+              <el-icon :size="24">
+                <Timer v-if="!isOrganizer" />
+                <Briefcase v-else />
+              </el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ userStats.activityCount }}</div>
-              <div class="stats-label">参加活动数</div>
+              <div class="stats-value">{{ isOrganizer ? organizerStats.activityCount : userStats.activityCount }}</div>
+              <div class="stats-label">{{ isOrganizer ? '发布活动数' : '参加活动数' }}</div>
             </div>
           </div>
         </el-card>
@@ -30,16 +33,19 @@
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="icon-wrapper star-icon">
-              <el-icon :size="24"><Star /></el-icon>
+              <el-icon :size="24">
+                <Star v-if="!isOrganizer" />
+                <Document v-else />
+              </el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ userStats.points }}</div>
-              <div class="stats-label">志愿积分</div>
+              <div class="stats-value">{{ isOrganizer ? organizerStats.newsCount : userStats.points }}</div>
+              <div class="stats-label">{{ isOrganizer ? '发布资讯数' : '志愿积分' }}</div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="6" v-if="!isOrganizer">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="icon-wrapper rank-icon">
@@ -195,15 +201,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import { checkIn, getRecommendedActivity, getMyRegistrations } from '@/api/activity'
+import { checkIn, getRecommendedActivity, getMyRegistrations, getMyActivities } from '@/api/activity'
 import { getVolunteerStats } from '@/api/user'
 import { getMyNotifications } from '@/api/notification'
+import { getMyNewsList } from '@/api/news'
 import {
   User, Timer, Star, Trophy, Search, Calendar, Clock, Location,
-  Sunny, FullScreen, Bell, InfoFilled
+  Sunny, FullScreen, Bell, InfoFilled, Briefcase, Document
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { Html5QrcodeScanner } from "html5-qrcode"
@@ -235,11 +242,30 @@ const userStats = ref({
     creditScore: 0
 })
 
+const organizerStats = ref({
+    activityCount: 0,
+    newsCount: 0
+})
+
+const isOrganizer = computed(() => userStore.role === 'ORGANIZER')
+
 const fetchStats = async () => {
     try {
-        const res = await getVolunteerStats()
-        if (res.code === 200) {
-            userStats.value = res.data
+        if (isOrganizer.value) {
+            // Fetch Organizer Stats
+            const resAct = await getMyActivities(1, 1, {})
+            if (resAct.code === 200) {
+                 organizerStats.value.activityCount = resAct.data.total
+            }
+            const resNews = await getMyNewsList({ current: 1, size: 1 })
+            if (resNews.code === 200) {
+                 organizerStats.value.newsCount = resNews.data.total
+            }
+        } else {
+            const res = await getVolunteerStats()
+            if (res.code === 200) {
+                userStats.value = res.data
+            }
         }
     } catch (error) {
         console.error("Failed to fetch user stats", error)
