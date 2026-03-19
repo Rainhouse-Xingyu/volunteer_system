@@ -86,9 +86,10 @@
         </div>
 
         <div class="card-actions">
-           <el-button :icon="View" plain @click="$router.push(`/activity/manage/${item.activityId}`)">管理</el-button>
-           <el-button :icon="Edit" plain @click="$router.push(`/activity/edit/${item.activityId}`)">编辑</el-button>
-           <el-button :icon="Delete" plain type="danger" @click="handleDelete(item)">删除</el-button>
+           <el-button v-if="item.status === 1 || item.status === 2" :icon="FullScreen" plain type="success" size="small" @click="showQrCode(item)">签到码</el-button>
+           <el-button :icon="View" plain size="small" @click="$router.push(`/activity/manage/${item.activityId}`)">管理</el-button>
+           <el-button :icon="Edit" plain size="small" @click="$router.push(`/activity/edit/${item.activityId}`)">编辑</el-button>
+           <el-button :icon="Delete" plain type="danger" size="small" @click="handleDelete(item)">删除</el-button>
         </div>
       </el-card>
     </div>
@@ -102,18 +103,40 @@
             @current-change="fetchData"
         />
     </div>
+
+    <!-- QR Code Dialog -->
+    <el-dialog
+        v-model="qrDialogVisible"
+        title="活动签到码"
+        width="360px"
+        center
+        @close="handleQrClose"
+    >
+        <div class="qr-container" style="text-align: center; padding: 20px;">
+            <div v-loading="loadingQr" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <img v-if="qrUrl" :src="qrUrl" alt="活动签到二维码" style="width: 200px; height: 200px;" />
+            </div>
+            <div style="margin-top: 20px;">
+                <el-tag type="info" effect="plain" round>
+                   <el-icon><Timer /></el-icon> {{ qrTimeLeft }}秒后刷新
+                </el-tag>
+            </div>
+            <p style="margin-top: 10px; color: #909399; font-size: 13px;">请志愿者使用App或小程序扫描签到</p>
+        </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyActivities } from '@/api/activity' // Need to ensure getMyActivities supports status filter or returns all
+import { getMyActivities, getSignToken } from '@/api/activity'
 import {
-  UserFilled, Timer, SuccessFilled, Calendar, Plus, View, Edit, Delete
+  UserFilled, Timer, SuccessFilled, Calendar, Plus, View, Edit, Delete, FullScreen
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import QRCode from 'qrcode'
 
 const router = useRouter()
 const activeTab = ref('my_activities')
@@ -192,6 +215,74 @@ const fetchData = async () => {
 const handleTabChange = () => {
     currentPage.value = 1
     fetchData()
+}
+
+// QR Code Logic
+const qrDialogVisible = ref(false)
+const qrUrl = ref('')
+const qrTimeLeft = ref(60)
+const loadingQr = ref(false)
+let qrTimer = null
+let countdownTimer = null
+const currentActivityId = ref(null)
+
+const showQrCode = async (item) => {
+    currentActivityId.value = item.activityId
+    qrDialogVisible.value = true
+    await refreshQr()
+    startQrTimers()
+}
+
+const refreshQr = async () => {
+    if (!currentActivityId.value) return
+    if (!qrUrl.value) loadingQr.value = true // Only show loading spinner on first load or if empty
+    
+    try {
+        const res = await getSignToken(currentActivityId.value)
+        if (res.code === 200) {
+            // Checkin content format: { activityId: 123, signToken: "uuid..." }
+            const content = JSON.stringify({
+                activityId: parseInt(currentActivityId.value),
+                signToken: res.data
+            })
+            qrUrl.value = await QRCode.toDataURL(content, { margin: 1, width: 250 })
+            qrTimeLeft.value = 60
+        }
+    } catch (e) {
+        console.error(e)
+        ElMessage.error('获取签到码失败')
+    } finally {
+        loadingQr.value = false
+    }
+}
+
+const startQrTimers = () => {
+    stopQrTimers()
+    // Refresh every 60s
+    qrTimer = setInterval(() => {
+        refreshQr()
+    }, 60000)
+    
+    // Countdown
+    countdownTimer = setInterval(() => {
+        if (qrTimeLeft.value > 0) {
+            qrTimeLeft.value--
+        }
+    }, 1000)
+}
+
+const stopQrTimers = () => {
+    if (qrTimer) clearInterval(qrTimer)
+    if (countdownTimer) clearInterval(countdownTimer)
+    qrTimer = null
+    countdownTimer = null
+}
+
+const handleQrClose = () => {
+    stopQrTimers()
+    qrDialogVisible.value = false
+    qrUrl.value = ''
+    qrTimeLeft.value = 60
 }
 
 const handleDelete = (item) => {

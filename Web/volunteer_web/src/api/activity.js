@@ -15,6 +15,13 @@ export function getActivityDetail(id) {
   })
 }
 
+export function getSignToken(id) {
+  return request({
+    url: `/activity/sign-token/${id}`,
+    method: 'get'
+  })
+}
+
 export function getMyActivities(current, size, params = {}) {
   return request({
     url: '/activity/my-list',
