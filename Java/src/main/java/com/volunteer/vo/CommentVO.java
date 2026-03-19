@@ -26,6 +26,11 @@ public class CommentVO {
      * 用户名 (关联查询)
      */
     private String username;
+
+    /**
+     * 用户昵称 (关联查询)
+     */
+    private String nickname;
     
     /**
      * 头像 (关联查询，目前数据库暂无，预留)

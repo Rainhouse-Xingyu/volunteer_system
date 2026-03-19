@@ -38,4 +38,16 @@ public class OrganizerProfile implements Serializable {
      * 审核状态: 0未审, 1通过
      */
     private Integer isVerified;
+
+    /**
+     * 用户昵称
+     */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String nickname;
+
+    /**
+     * 用户头像
+     */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String avatarUrl;
 }

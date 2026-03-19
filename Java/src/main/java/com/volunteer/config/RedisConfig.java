@@ -16,11 +16,21 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.cache.RedisCacheManager;
 import java.time.Duration;
 
 @Configuration
 @EnableCaching
 public class RedisConfig {
+
+    @Bean
+    public CacheManager cacheManager(RedisConnectionFactory factory) {
+        RedisCacheConfiguration config = redisCacheConfiguration();
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(config)
+                .build(); // 默认创建动态缓存
+    }
 
     @Bean
     public RedisCacheConfiguration redisCacheConfiguration() {

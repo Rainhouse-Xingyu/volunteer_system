@@ -37,6 +37,57 @@ public class VolunteerController {
     @Autowired
     private JwtUtils jwtUtils;
 
+    @Autowired
+    private com.volunteer.service.UserService userService;
+
+    @Autowired
+    private com.volunteer.service.ActivityService activityService;
+
+    /**
+     * 获取志愿者仪表盘统计数据
+     */
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getDashboardStats(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "用户信息异常");
+        }
+
+        // 1. 获取已参与活动数量 (状态为1:已录取)
+        List<com.volunteer.entity.Registration> registrations = registrationService.list(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.volunteer.entity.Registration>()
+                .eq(com.volunteer.entity.Registration::getVolunteerId, currentUser.getUserId())
+                .eq(com.volunteer.entity.Registration::getRegStatus, 1)); // 1:已录取
+
+        long count = registrations.size();
+
+        // Calculate volunteer hours based on checked-in activities
+        long totalMinutes = 0;
+        for (com.volunteer.entity.Registration reg : registrations) {
+             // Only count if checked in
+             if (reg.getCheckinStatus() != null && reg.getCheckinStatus() == 1) {
+                 com.volunteer.entity.Activity activity = activityService.getById(reg.getActivityId());
+                 if (activity != null && activity.getStartTime() != null && activity.getEndTime() != null) {
+                     java.time.Duration duration = java.time.Duration.between(activity.getStartTime(), activity.getEndTime());
+                     totalMinutes += duration.toMinutes();
+                 }
+             }
+        }
+        
+        double hours = totalMinutes / 60.0;
+        hours = Math.round(hours * 10.0) / 10.0;
+
+        // 2. 获取最新积分和信誉分
+        User user = userService.getById(currentUser.getUserId());
+        
+        Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("activityCount", count);
+        stats.put("points", user.getPoints());
+        stats.put("creditScore", user.getCreditScore());
+        stats.put("volunteerHours", hours);
+        
+        return Result.success(stats);
+    }
+
     /**
      * 获取当前登录志愿者资料
      * @param request HTTP请求
@@ -83,31 +134,59 @@ public class VolunteerController {
     @GetMapping("/my-registrations")
     public Result<Object> getMyRegistrations(@RequestParam(defaultValue = "1") int current,
                                              @RequestParam(defaultValue = "10") int size,
+                                             @RequestParam(required = false) Integer status,
                                              HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         if (currentUser == null) {
             return Result.error(401, "用户信息异常");
         }
         
-        return Result.success(registrationService.getMyRegistrations(current, size, currentUser.getUserId()));
+        return Result.success(registrationService.getMyRegistrations(current, size, currentUser.getUserId(), status));
     }
 
     /**
      * 扫码签到
-     * @param param 包含 signToken
+     * @param param 包含 activityId, signToken
      */
     @PostMapping("/checkin")
-    public Result<String> checkIn(@RequestBody java.util.Map<String, String> param, HttpServletRequest request) {
-        String signToken = param.get("signToken");
+    public Result<String> checkIn(@RequestBody java.util.Map<String, Object> param, HttpServletRequest request) {
+        String signToken = (String) param.get("signToken");
+        Integer activityId = (Integer) param.get("activityId");
+        
         if (signToken == null || signToken.trim().isEmpty()) {
             return Result.error(400, "Token不能为空");
         }
+        if (activityId == null) {
+            return Result.error(400, "活动ID不能为空");
+        }
 
         User currentUser = (User) request.getAttribute("currentUser");
-        registrationService.checkIn(signToken, currentUser.getUserId());
+        registrationService.checkIn(activityId, signToken, currentUser.getUserId());
         
         return Result.success("签到成功");
     }
+
+    /**
+     * 完成活动
+     */
+    @PostMapping("/complete/{regId}")
+    public Result<Void> completeActivity(@PathVariable Integer regId, HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+             return Result.error(401, "用户信息异常");
+        }
+        com.volunteer.entity.Registration registration = registrationService.getById(regId);
+        if (registration == null) {
+            return Result.error(404, "报名记录不存在");
+        }
+        if (!registration.getVolunteerId().equals(currentUser.getUserId())) {
+            return Result.error(403, "无权操作");
+        }
+        registration.setRegStatus(2); // 2: Completed
+        registrationService.updateById(registration);
+        return Result.success();
+    }
+
 
     /**
      * 查询某活动报名与签到状态
@@ -142,6 +221,19 @@ public class VolunteerController {
     }
 
     /**
+     * 获取推荐活动（不冲突的活动）
+     */
+    @GetMapping("/recommendation")
+    public Result<com.volunteer.entity.Activity> getRecommendedActivity(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "用户信息异常");
+        }
+        
+        return Result.success(volunteerService.getRecommendedActivity(currentUser.getUserId()));
+    }
+
+    /**
      * 获取我的通知列表
      * @param current 页码
      * @param size 每页数量
@@ -172,6 +264,19 @@ public class VolunteerController {
         }
         
         notificationService.markAsRead(noticeId, currentUser.getUserId());
+        return Result.success();
+    }
+
+    /**
+     * 标记全部已读
+     */
+    @PutMapping("/notifications/read-all")
+    public Result<Void> markAllAsRead(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        notificationService.markAllAsRead(currentUser.getUserId());
         return Result.success();
     }
 }

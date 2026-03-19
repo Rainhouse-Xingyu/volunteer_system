@@ -36,6 +36,7 @@
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/entity/Violation.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/controller/VolunteerController.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/mapper/EvaluationMapper.java
+/Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/config/Knife4jConfig.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/config/MybatisPlusConfig.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/controller/DataAnalysisController.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/annotation/RequireRole.java
@@ -60,12 +61,16 @@
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/entity/Comment.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/LoginService.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/dto/LoginDTO.java
+/Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/dto/RegisterDTO.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/impl/RegistrationServiceImpl.java
+/Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/controller/RegistrationController.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/dto/RegistrationDTO.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/controller/LoginController.java
+/Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/task/ActivityStatusTask.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/UserService.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/DataAnalysisService.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/impl/OrganizerServiceImpl.java
+/Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/dto/PasswordDTO.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/common/Result.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/service/NotificationService.java
 /Users/xingyuzhao/Desktop/Boru Gao/Graduation project/volunteer_system/Java/src/main/java/com/volunteer/exception/ServiceException.java

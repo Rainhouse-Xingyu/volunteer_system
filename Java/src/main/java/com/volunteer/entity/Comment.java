@@ -24,7 +24,7 @@ public class Comment implements Serializable {
     /**
      * 评论ID
      */
-    @TableId(value = "comment_id", type = IdType.AUTO)
+    @TableId(value = "id", type = IdType.AUTO)
     private Integer commentId;
 
     /**
@@ -33,9 +33,24 @@ public class Comment implements Serializable {
     private Integer userId;
 
     /**
-     * 关联活动ID
+     * 评论对象类型: activity/story
      */
-    private Integer activityId;
+    private String targetType;
+
+    /**
+     * 对应的活动ID或故事ID
+     */
+    private Integer targetId;
+
+    /**
+     * 评分
+     */
+    private Integer score;
+
+    /**
+     * 状态: 0-待审核, 1-正常显示, 2-违规隐藏
+     */
+    private Integer status;
 
     /**
      * 评论内容

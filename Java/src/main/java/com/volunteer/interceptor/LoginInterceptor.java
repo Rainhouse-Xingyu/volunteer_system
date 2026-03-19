@@ -45,8 +45,15 @@ public class LoginInterceptor implements HandlerInterceptor {
         
         // 2. 校验 Token 是否存在
         if (!StringUtils.hasText(token)) {
+            // 尝试从 Request Attribute 中获取 (有些 Filter 可能会处理)
+            // 这里简单处理，如果头没有则返回未登录
             returnErrorResponse(response, 401, "未登录，请先登录");
             return false;
+        }
+
+        // 去除 Bearer 前缀
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
         }
         
         // 3. 校验 Token 格式是否有效

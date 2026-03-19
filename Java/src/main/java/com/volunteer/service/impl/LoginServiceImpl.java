@@ -3,6 +3,7 @@ package com.volunteer.service.impl;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.volunteer.dto.LoginDTO;
+import com.volunteer.dto.RegisterDTO;
 import com.volunteer.entity.User;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.UserMapper;
@@ -14,6 +15,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -110,9 +112,79 @@ public class LoginServiceImpl implements LoginService {
     }
 
     @Override
+    public String register(RegisterDTO registerDTO) {
+        // 1. 检查用户名是否存在
+        User existUser = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, registerDTO.getUsername()));
+        if (existUser != null) {
+            throw new ServiceException("用户名已存在");
+        }
+
+        // 2. 创建用户
+        User user = new User();
+        user.setUsername(registerDTO.getUsername());
+        // 使用与登录一致的加密方式 (这里假设 MD5Hex)
+        user.setPassword(DigestUtil.md5Hex(registerDTO.getPassword()));
+        user.setRole(registerDTO.getRole()); // VOLUNTEER or ORGANIZER
+        user.setStatus(1); // 默认启用
+        
+        // 只有志愿者才有积分和信用评分
+        if ("VOLUNTEER".equalsIgnoreCase(registerDTO.getRole())) {
+            user.setPoints(0);
+            user.setCreditScore(100);
+        } else {
+            user.setPoints(null);
+            user.setCreditScore(null);
+        }
+        
+        user.setCreatedAt(LocalDateTime.now());
+        
+        // 3. 保存到数据库
+        userMapper.insert(user);
+        
+        return null; // 不需要自动登录
+    }
+
+    @Override
     public void logout(String token) {
         if (StringUtils.hasText(token)) {
+            // 从 token 中去除 token 前缀 (通常是 "Bearer " + token)
+            // 这里假设 logout 参数就是 raw token (不含 Bearer) 
+            // 实际上 LoginController 传进来的就是 raw token ??
+            // 还是需要去掉 Bearer ?
+            // LoginController: String token = request.getHeader("Authorization");
+            // request.getHeader("Authorization") returns "Bearer xxx" usually.
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
             redisTemplate.delete(AUTH_TOKEN_PREFIX + token);
         }
+    }
+
+    @Override
+    public void changePassword(Integer userId, String oldPassword, String newPassword) {
+        if (!StringUtils.hasText(oldPassword) || !StringUtils.hasText(newPassword)) {
+            throw new ServiceException("密码不能为空");
+        }
+
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new ServiceException("用户不存在");
+        }
+
+        boolean match = false;
+        // Check old password (plain text or MD5)
+        if (oldPassword.equals(user.getPassword())) {
+            match = true;
+        } else if (cn.hutool.crypto.digest.DigestUtil.md5Hex(oldPassword).equals(user.getPassword())) {
+            match = true;
+        }
+
+        if (!match) {
+            throw new ServiceException("原密码错误");
+        }
+
+        user.setPassword(cn.hutool.crypto.digest.DigestUtil.md5Hex(newPassword));
+        userMapper.updateById(user);
     }
 }

@@ -36,6 +36,12 @@ public class VolunteerProfile implements Serializable {
     private String studentId;
 
     /**
+     * 志愿积分
+     */
+    @TableField(exist = false)
+    private Integer volunteerPoints; // 对应 users 表中的 points
+
+    /**
      * 联系电话
      */
     private String phone;
@@ -43,15 +49,26 @@ public class VolunteerProfile implements Serializable {
     /**
      * 信用评分
      */
-    private Integer creditScore;
+    @TableField(exist = false)
+    private Integer creditScore; // 对应 users 表中的 credit_score
 
     /**
-     * 志愿积分
+     * 用户昵称
      */
-    private Integer points;
+    @TableField(exist = false)
+    private String nickname;
+
+    /**
+     * 用户头像
+     */
+    @TableField(exist = false)
+    private String avatarUrl;
 
     /**
      * 个人简介
      */
     private String bio;
+    private Integer points;
+
+
 }

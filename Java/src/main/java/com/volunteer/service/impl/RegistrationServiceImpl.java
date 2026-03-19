@@ -11,7 +11,6 @@ import com.volunteer.entity.Registration;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.mapper.RegistrationMapper;
-import com.volunteer.entity.Notification;
 import com.volunteer.service.NotificationService;
 import com.volunteer.service.RegistrationService;
 import org.springframework.beans.BeanUtils;
@@ -57,16 +56,23 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(Integer activityId, Integer userId) {
+        // 先查询活动信息
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
+            throw new ServiceException("活动不存在");
+        }
+        // 校验活动是否结束
+        if (activity.getStatus() == 3 || (activity.getEndTime() != null && activity.getEndTime().isBefore(java.time.LocalDateTime.now()))) {
+             throw new ServiceException("活动已结束，无法报名");
+        }
+
         String quotaKey = ACTIVITY_QUOTA_PREFIX + activityId;
 
         // 检查 Redis 中是否存在 Key，如果不存在，则从数据库同步
         if (Boolean.FALSE.equals(redisTemplate.hasKey(quotaKey))) {
-            Activity activity = activityMapper.selectById(activityId);
-            if (activity != null) {
-                int remaining = activity.getQuota() - activity.getCurrentParticipants();
-                // 使用 setIfAbsent 避免并发覆盖，且只有当名额 > 0 时才有意义（但为了防止缓存穿透，<=0 也设为0）
-                redisTemplate.opsForValue().setIfAbsent(quotaKey, Math.max(remaining, 0));
-            }
+            int remaining = activity.getQuota() - activity.getCurrentParticipants();
+            // 使用 setIfAbsent 避免并发覆盖，且只有当名额 > 0 时才有意义（但为了防止缓存穿透，<=0 也设为0）
+            redisTemplate.opsForValue().setIfAbsent(quotaKey, Math.max(remaining, 0));
         }
         
         // 1. Redis 原子性递减 (预减库存)
@@ -168,10 +174,10 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     }
 
     @Override
-    public IPage<RegistrationDTO> getMyRegistrations(int current, int size, Integer userId) {
+    public IPage<RegistrationDTO> getMyRegistrations(int current, int size, Integer userId, Integer status) {
         // 使用 Mapper 自定义关联查询，一步到位获取 Activity 信息
         Page<RegistrationDTO> page = new Page<>(current, size);
-        return baseMapper.selectMyRegistrations(page, userId);
+        return baseMapper.selectMyRegistrations(page, userId, status);
     }
 
     /**
@@ -227,9 +233,12 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        // 6. 增加积分 (10分) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        Activity activity = activityMapper.selectById(activityId);
+        int points = (activity != null && activity.getRewardPoints() != null) ? activity.getRewardPoints() : 10;
+
+        // 6. 增加积分 (动态) 和 信用分 (1分) -> 更新 volunteer_profiles 表
         UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
-        profileUpdate.setSql("points = ifnull(points, 0) + 10, credit_score = ifnull(credit_score, 100) + 1")
+        profileUpdate.setSql("points = ifnull(points, 0) + " + points + ", credit_score = ifnull(credit_score, 100) + 1")
                      .eq("user_id", userId);
         volunteerProfileMapper.update(null, profileUpdate);
     }
@@ -278,9 +287,12 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        // 6. 增加积分 (10分) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        Activity activity = activityMapper.selectById(activityId);
+        int points = (activity != null && activity.getRewardPoints() != null) ? activity.getRewardPoints() : 10;
+
+        // 6. 增加积分 (动态) 和 信用分 (1分) -> 更新 volunteer_profiles 表
         UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
-        profileUpdate.setSql("points = ifnull(points, 0) + 10, credit_score = ifnull(credit_score, 100) + 1")
+        profileUpdate.setSql("points = ifnull(points, 0) + " + points + ", credit_score = ifnull(credit_score, 100) + 1")
                      .eq("user_id", userId);
         volunteerProfileMapper.update(null, profileUpdate);
     }
@@ -312,18 +324,22 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     public List<RegistrationDTO> getActivityRegistrations(Integer activityId) {
         // 1. 查询该活动的所有报名记录
         LambdaQueryWrapper<Registration> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Registration::getActivityId, activityId);
+        queryWrapper.eq(Registration::getActivityId, activityId)
+                   .orderByDesc(Registration::getCreateTime);
+                   
         List<Registration> list = registrationMapper.selectList(queryWrapper);
-        
         if (list.isEmpty()) {
             return new ArrayList<>();
         }
         
-        // 2. 补全志愿者信息
+        // 2. 补全信息 (与分页查询逻辑一致)
         return list.stream().map(reg -> {
             RegistrationDTO dto = new RegistrationDTO();
             BeanUtils.copyProperties(reg, dto);
             
+            // 签到状态
+            dto.setCheckinStatus(reg.getCheckinStatus() != null ? reg.getCheckinStatus() : 0);
+
             // 查询志愿者 Profile
             com.volunteer.entity.VolunteerProfile profile = volunteerProfileMapper.selectById(reg.getVolunteerId());
             if (profile != null) {
@@ -331,15 +347,81 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
                 dto.setPhone(profile.getPhone());
                 dto.setStudentId(profile.getStudentId());
             } else {
-                // 如果没有 Profile，尝试获取 Username
                 com.volunteer.entity.User user = userMapper.selectById(reg.getVolunteerId());
                 if (user != null) {
                     dto.setVolunteerName(user.getUsername());
                 }
             }
             
+            // 补全活动标题
+            Activity act = activityMapper.selectById(reg.getActivityId());
+            if(act != null) {
+                dto.setActivityTitle(act.getTitle());
+            }
+
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public IPage<RegistrationDTO> listByActivity(Integer activityId, int current, int size) {
+        // 1. 分页查询该活动的所有报名记录
+        Page<Registration> page = new Page<>(current, size);
+        LambdaQueryWrapper<Registration> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Registration::getActivityId, activityId)
+                   .orderByDesc(Registration::getCreateTime);
+                   
+        IPage<Registration> resultPage = registrationMapper.selectPage(page, queryWrapper);
+        List<Registration> list = resultPage.getRecords();
+        
+        if (list.isEmpty()) {
+            return new Page<RegistrationDTO>(current, size);
+        }
+        
+        // 2. 补全信息
+        List<RegistrationDTO> dtoList = list.stream().map(reg -> {
+            RegistrationDTO dto = new RegistrationDTO();
+            BeanUtils.copyProperties(reg, dto);
+            // 确保 dto.createTime 存在
+            // dto.setCreateTime(reg.getCreateTime()); // RegistrationDTO 可能由 BeanUtils 自动填充
+
+            // 签到状态 (Registration 表自带 checkinStatus)
+            dto.setCheckinStatus(reg.getCheckinStatus() != null ? reg.getCheckinStatus() : 0);
+
+            // 查询志愿者 Profile
+            com.volunteer.entity.VolunteerProfile profile = volunteerProfileMapper.selectById(reg.getVolunteerId());
+            com.volunteer.entity.User user = userMapper.selectById(reg.getVolunteerId());
+            
+            // 优先设置用户信息
+            if (user != null) {
+                dto.setAvatarUrl(user.getAvatarUrl());
+                // 默认用昵称或用户名
+                String name = user.getNickname() != null ? user.getNickname() : user.getUsername();
+                dto.setVolunteerName(name);
+            }
+            
+            // 如果有实名信息，覆盖显示
+            if (profile != null) {
+                if (profile.getRealName() != null && !profile.getRealName().isEmpty()) {
+                    dto.setVolunteerName(profile.getRealName());
+                }
+                dto.setPhone(profile.getPhone());
+                dto.setStudentId(profile.getStudentId());
+            }
+            
+            // 补全活动标题 (可选，如果是同一个活动列表其实已知)
+            Activity act = activityMapper.selectById(reg.getActivityId());
+            if(act != null) {
+                dto.setActivityTitle(act.getTitle());
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
+
+        Page<RegistrationDTO> dtoPage = new Page<>(current, size);
+        dtoPage.setRecords(dtoList);
+        dtoPage.setTotal(resultPage.getTotal());
+        return dtoPage;
     }
 
     @Override
@@ -351,45 +433,112 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
             throw new ServiceException("报名记录不存在");
         }
 
-        // 2. 校验权限 (检查活动是否属于该组织者)
+        // 2. 权限校验
         Activity activity = activityMapper.selectById(registration.getActivityId());
         if (activity == null) {
             throw new ServiceException("关联活动不存在");
         }
         if (!activity.getOrganizerId().equals(organizerId)) {
-            throw new ServiceException("您无权操作该报名记录");
+            // 如果 organizerId 为空或者不匹配，则无权操作
+            throw new ServiceException("您无权审核此活动的报名");
         }
 
         Integer oldStatus = registration.getRegStatus();
         if (oldStatus.equals(targetStatus)) {
-            return; // 状态未变更，直接返回
+            return; // 状态未变更
         }
-
-
-        // 插入通知
-        String statusStr = (targetStatus == 1) ? "已通过" : "被拒绝";
-        String content = "您报名的活动【" + activity.getTitle() + "】" + statusStr + "，请进入个人中心查看";
-        notificationService.sendNotice(registration.getVolunteerId(), "活动报名结果提醒", content, "通知");
 
         // 3. 更新状态
         registration.setRegStatus(targetStatus);
         registrationMapper.updateById(registration);
 
-        // 4. 拒绝逻辑：回滚库存
-        // 只有当变更为“已拒绝 (2)”且原状态为“已录取 (1)”时，才释放名额
-        if (targetStatus == 2 && oldStatus == 1) {
-             // 4.1 Redis 库存 +1
-             String quotaKey = ACTIVITY_QUOTA_PREFIX + activity.getActivityId();
-             redisTemplate.opsForValue().increment(quotaKey);
-             
-             // 4.2 数据库 current_participants -1
-             UpdateWrapper<Activity> updateWrapper = new UpdateWrapper<>();
-             updateWrapper.setSql("current_participants = current_participants - 1")
-                          .eq("activity_id", activity.getActivityId())
-                          // 只有大于0才减，兜底防止负数
-                          .gt("current_participants", 0);
-             activityMapper.update(null, updateWrapper);
+        // 4. 库存处理
+        // 场景A: 拒绝操作 (status 1 -> 2) => 释放名额
+        // 注意：只有原先是占用名额的状态（0待审核 或 1已录用）转为 2拒绝 才释放。
+        // 但通常 logic 是：0 => 2 (release), 1 => 2 (release), 2 => 1 (occupy).
+        // 且 register() 方法里默认是预占名额 (check logic if needed).
+        // 假设 register() 时 quota-1, status=0. 
+        // useful if organizer rejects pending application ( 0 -> 2 ) -> release
+        // useful if organizer kicks accepted user ( 1 -> 2 ) -> release
+        if (targetStatus == 2 && (oldStatus == 1 || oldStatus == 0)) {
+             increaseQuota(registration.getActivityId());
         }
-        // 如果是从 2(拒绝) 改回 1(录取)? 用户需求没说，暂不处理复杂的反向回滚逻辑，尽量简化。
+        // 场景B: 从已拒绝恢复为录用 (2 -> 1) => 占用名额
+        if (targetStatus == 1 && oldStatus == 2) {
+             decreaseQuota(registration.getActivityId());
+        }
+        // 注意：0 -> 1 不需要操作库存，因为注册时已经在 Redis 中扣减了
+        
+        // 5. 发送通知
+        String statusText = (targetStatus == 1) ? "已通过录用" : "未能通过审核";
+        String content = String.format("您报名的活动【%s】审核结果：%s。如有疑问请联系组织者。", activity.getTitle(), statusText);
+        notificationService.sendNotice(registration.getVolunteerId(), "报名审核通知", content, "system_msg");
+    }
+
+    @Override
+    public String generateCheckInCode(Integer activityId, Integer organizerId) {
+        // 1. 校验权限
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
+            throw new ServiceException("活动不存在");
+        }
+        if (!activity.getOrganizerId().equals(organizerId)) {
+             throw new ServiceException("无权操作");
+        }
+        
+        // 2. 生成随机 Token (UUID)
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
+
+        // 保存到数据库
+        Activity activity1 = activityMapper.selectById(activityId); // Ensure we have the latest object if needed, or reuse if passed in (not passed in)
+        // Check activity not null (checked in step 1)
+        activity1.setQrCodeToken(token);
+        activityMapper.updateById(activity1);
+        
+        // 3. 存入Redis，设置有效期 60 秒
+        String redisKey = "activity:sign_token:" + activityId;
+        stringRedisTemplate.opsForValue().set(redisKey, token, 60, java.util.concurrent.TimeUnit.SECONDS);
+
+        // 兼容旧版扫码 (Token -> ActivityId)
+        String checkInKey = "activity:sign:" + token;
+        redisTemplate.opsForValue().set(checkInKey, activityId, 60, java.util.concurrent.TimeUnit.SECONDS);
+        
+        return token;
+    }
+    
+    /**
+     * 辅助: 增加库存 (释放名额)
+     */
+    private void increaseQuota(Integer activityId) {
+        // Redis 库存 +1
+        String quotaKey = ACTIVITY_QUOTA_PREFIX + activityId;
+        redisTemplate.opsForValue().increment(quotaKey);
+        
+        // 数据库 current_participants -1
+        UpdateWrapper<Activity> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.setSql("current_participants = current_participants - 1")
+                     .eq("activity_id", activityId)
+                     .gt("current_participants", 0);
+        activityMapper.update(null, updateWrapper);
+    }
+
+    /**
+     * 辅助: 减少库存 (占用名额)
+     */
+    private void decreaseQuota(Integer activityId) {
+         // Redis 库存 -1
+         String quotaKey = ACTIVITY_QUOTA_PREFIX + activityId;
+         Long newQuota = redisTemplate.opsForValue().decrement(quotaKey);
+         if (newQuota != null && newQuota < 0) {
+             // 回滚
+             redisTemplate.opsForValue().increment(quotaKey);
+             throw new ServiceException("活动名额已满，无法重新录用");
+         }
+         
+         // 数据库 current_participants +1
+         UpdateWrapper<Activity> updateWrapper = new UpdateWrapper<>();
+         updateWrapper.setSql("current_participants = current_participants + 1")
+                      .eq("activity_id", activityId);
+         activityMapper.update(null, updateWrapper);
     }
 }

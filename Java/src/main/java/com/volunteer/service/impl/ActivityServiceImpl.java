@@ -8,7 +8,9 @@ import com.volunteer.entity.Activity;
 import com.volunteer.exception.ServiceException;
 import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.service.ActivityService;
+import com.volunteer.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,9 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
 
     @Autowired
     private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private NotificationService notificationService;
 
     private static final String ACTIVITY_QUOTA_PREFIX = "activity:quota:";
 
@@ -64,7 +69,7 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
     }
 
     @Override
-    @Cacheable(value = "activities", key = "'page:' + #current", condition = "#current == 1")
+    // @Cacheable(value = "activities", key = "'page:' + #current", condition = "#current == 1")
     public IPage<Activity> getPublishedActivities(int current, int size) {
         Page<Activity> page = new Page<>(current, size);
         // 使用 Mapper 自定义 SQL 查询，确保严格过滤 status = 1
@@ -142,6 +147,10 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         // 2. 生成随机 Token
         String signToken = java.util.UUID.randomUUID().toString().replace("-", "");
 
+        // 保存到数据库 (持久化记录最后一次生成的Token)
+        activity.setQrCodeToken(signToken);
+        this.updateById(activity);
+
         // 3. 存入 Redis (60秒过期)
         // 需求 Key: activity:sign_token:{activityId} -> signToken (供前端轮询或查看当前Token)
         String organizerKey = "activity:sign_token:" + activityId;
@@ -154,6 +163,15 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         redisTemplate.opsForValue().set(checkInKey, activityId, 60, TimeUnit.SECONDS);
 
         return signToken;
+    }
+
+    @Override
+    public IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId) {
+        Page<Activity> page = new Page<>(current, size);
+        LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Activity::getOrganizerId, organizerId);
+        queryWrapper.orderByDesc(Activity::getCreatedAt);
+        return this.page(page, queryWrapper);
     }
 
     @Override
@@ -175,6 +193,16 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         boolean updateResult = this.updateById(activity);
         if (!updateResult) {
             throw new ServiceException("审核状态更新失败");
+        }
+
+        // 发送审核结果通知
+        if (Integer.valueOf(1).equals(status) || Integer.valueOf(4).equals(status)) {
+            String noticeTitle = Integer.valueOf(1).equals(status) ? "活动审核通过" : "活动审核驳回";
+            String noticeContent = Integer.valueOf(1).equals(status) 
+                    ? "恭喜！您发布的活动【" + activity.getTitle() + "】已通过审核并发布。"
+                    : "很遗憾，您发布的活动【" + activity.getTitle() + "】未通过审核。";
+            
+            notificationService.sendNotice(activity.getOrganizerId(), noticeTitle, noticeContent, "system_msg");
         }
 
         // 4. 如果审核通过 (status=1)，初始化 Redis 库存

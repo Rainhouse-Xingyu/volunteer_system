@@ -190,4 +190,22 @@ public class ActivityController {
     public Result<Activity> getActivity(@PathVariable Integer id) {
         return Result.success(activityService.getActivityDetail(id));
     }
+
+    /**
+     * 获取我发布的活动
+     */
+    @RequireRole("organizer")
+    @GetMapping("/my-list")
+    public Result<IPage<Activity>> getMyActivities(
+        @RequestParam(defaultValue = "1") int current,
+        @RequestParam(defaultValue = "10") int size,
+        HttpServletRequest request) {
+        
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        
+        return Result.success(activityService.getMyCreatedActivities(current, size, currentUser.getUserId()));
+    }
 }

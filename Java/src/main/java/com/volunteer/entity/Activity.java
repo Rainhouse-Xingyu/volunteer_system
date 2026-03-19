@@ -73,6 +73,11 @@ public class Activity implements Serializable {
     private Integer quota;
 
     /**
+     * 活动积分奖励
+     */
+    private Integer rewardPoints;
+
+    /**
      * 当前已报名人数
      */
     private Integer currentParticipants;

@@ -25,6 +25,23 @@ public class CommentController {
     private JwtUtils jwtUtils;
 
     /**
+     * 发表评价
+     */
+    @PostMapping("/add")
+    public Result<String> addComment(@RequestBody CommentVO commentVO, HttpServletRequest request) {
+        // 从 Token 获取 userId
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        Claims claims = jwtUtils.parseToken(token);
+        Integer userId = claims.get("userId", Integer.class);
+        
+        commentService.postComment(userId, commentVO.getActivityId(), commentVO.getContent());
+        return Result.success("评价成功");
+    }
+
+    /**
      * 查询某个活动的所有评价
      */
     @GetMapping("/activity/{activityId}")
@@ -40,6 +57,9 @@ public class CommentController {
     public Result<List<CommentVO>> getMyComments(HttpServletRequest request) {
         // 从 Token 获取 userId
         String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7).trim();
+        }
         Claims claims = jwtUtils.parseToken(token);
         Integer userId = claims.get("userId", Integer.class);
         

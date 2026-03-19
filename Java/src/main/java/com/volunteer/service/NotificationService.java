@@ -33,4 +33,10 @@ public interface NotificationService extends IService<Notification> {
      * @param userId 操作用户ID (用于安全校验)
      */
     void markAsRead(Integer noticeId, Integer userId);
+
+    /**
+     * 标记所有通知为已读
+     * @param userId 用户ID
+     */
+    void markAllAsRead(Integer userId);
 }

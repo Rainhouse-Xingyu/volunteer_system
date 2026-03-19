@@ -56,4 +56,11 @@ public class Registration implements Serializable {
      * 1表示确认完成
      */
     private Integer isCompleted;
+
+    /**
+     * 创建时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @com.baomidou.mybatisplus.annotation.TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
+    private LocalDateTime createTime;
 }

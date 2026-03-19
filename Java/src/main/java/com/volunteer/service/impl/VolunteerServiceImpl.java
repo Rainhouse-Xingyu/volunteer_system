@@ -17,12 +17,23 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.regex.Pattern;
+import com.volunteer.entity.Activity;
+import com.volunteer.entity.Registration;
+import com.volunteer.mapper.ActivityMapper;
+import com.volunteer.mapper.RegistrationMapper;
+import java.time.LocalDateTime;
 
 /**
  * 志愿者服务实现类
  */
 @Service
 public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, VolunteerProfile> implements VolunteerService {
+
+    @Autowired
+    private ActivityMapper activityMapper;
+
+    @Autowired
+    private RegistrationMapper registrationMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -43,9 +54,21 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         volunteerProfile.setUserId(userId);
 
         // 安全处理：防止用户通过接口修改积分和信用评分
-        // 将这两个字段置为 null，利用 MyBatis-Plus 默认的非空更新策略，避免更新这两个字段
-        volunteerProfile.setPoints(null);
+        volunteerProfile.setVolunteerPoints(null);
         volunteerProfile.setCreditScore(null);
+        
+        // 更新 User 表中的基本信息 (昵称、头像)
+        if (StringUtils.hasText(volunteerProfile.getNickname()) || StringUtils.hasText(volunteerProfile.getAvatarUrl())) {
+            User user = new User();
+            user.setUserId(userId);
+            if (StringUtils.hasText(volunteerProfile.getNickname())) {
+                user.setNickname(volunteerProfile.getNickname());
+            }
+            if (StringUtils.hasText(volunteerProfile.getAvatarUrl())) {
+                user.setAvatarUrl(volunteerProfile.getAvatarUrl());
+            }
+            userMapper.updateById(user);
+        }
 
         // 2. 校验手机号格式
         if (StringUtils.hasText(volunteerProfile.getPhone())) {
@@ -99,8 +122,10 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         com.volunteer.entity.User user = userMapper.selectById(userId);
         if (user != null) {
             // 将 Users 表中的数据填充到 Profile DTO 中返回
-            profile.setPoints(user.getPoints());
+            profile.setVolunteerPoints(user.getPoints());
             profile.setCreditScore(user.getCreditScore());
+            profile.setNickname(user.getNickname());
+            profile.setAvatarUrl(user.getAvatarUrl());
         }
         
         // 暂停 Redis 缓存逻辑，因为涉及多表组装，且分数变动频繁
@@ -140,5 +165,63 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         result.put("myPoints", myPoints);
         
         return result;
+    }
+
+    @Override
+    public Activity getRecommendedActivity(Integer userId) {
+        // 1. 获取用户已报名的活动（包括待审核和已录取，不包括已拒绝）
+        // 获取活动时间段，以便排除冲突
+        List<Registration> myRegs = registrationMapper.selectList(new LambdaQueryWrapper<Registration>()
+                .eq(Registration::getVolunteerId, userId)
+                .in(Registration::getRegStatus, 0, 1)); // 0:待审, 1:录用 (拒绝的不算冲突)
+        
+        // 收集已报名的活动ID，用于直接排除
+        Set<Integer> registeredActivityIds = new HashSet<>();
+        // 收集已报名的时间段
+        List<Activity> myActivities = new ArrayList<>();
+        
+        for (Registration reg : myRegs) {
+            registeredActivityIds.add(reg.getActivityId());
+            Activity act = activityMapper.selectById(reg.getActivityId());
+            if (act != null) {
+                myActivities.add(act);
+            }
+        }
+        
+        // 2. 查询所有候选活动
+        // 条件：
+        // - 状态为1 (招募中)
+        // - 名额未满 (currentParticipants < quota)
+        // - 开始时间在未来
+        // - 不在已报名列表中
+        List<Activity> candidates = activityMapper.selectList(new LambdaQueryWrapper<Activity>()
+                .eq(Activity::getStatus, 1) // 招募中
+                .gt(Activity::getStartTime, LocalDateTime.now()) // 未开始
+                .apply("current_participants < quota") // 名额未满
+                .notIn(!registeredActivityIds.isEmpty(), Activity::getActivityId, registeredActivityIds)
+                .orderByAsc(Activity::getStartTime) // 优先推荐快开始的
+                .last("LIMIT 20")); // 取前20个进行过滤
+        
+        // 3. 过滤时间冲突
+        for (Activity candidate : candidates) {
+            boolean conflict = false;
+            for (Activity myAct : myActivities) {
+                // 检查时间是否有重叠
+                // (StartA < EndB) and (EndA > StartB)
+                if (candidate.getStartTime().isBefore(myAct.getEndTime()) && 
+                    candidate.getEndTime().isAfter(myAct.getStartTime())) {
+                    conflict = true;
+                    break;
+                }
+            }
+            
+            if (!conflict) {
+                // 找到第一个无冲突的活动，直接返回
+                // 这里可以扩展为评分排序机制，但目前简单返回最早的一个
+                return candidate;
+            }
+        }
+        
+        return null; // 没有合适的推荐
     }
 }

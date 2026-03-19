@@ -32,6 +32,16 @@ public class User implements Serializable {
     private String username;
 
     /**
+     * 用户昵称
+     */
+    private String nickname;
+
+    /**
+     * 头像图片路径或URL
+     */
+    private String avatarUrl;
+
+    /**
      * 加密密码
      */
     private String password;

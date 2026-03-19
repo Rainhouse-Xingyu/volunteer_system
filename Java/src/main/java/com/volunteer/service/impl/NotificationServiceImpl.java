@@ -1,6 +1,7 @@
 package com.volunteer.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -62,16 +63,26 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
             throw new ServiceException("通知不存在");
         }
         
-        if (!notification.getReceiverId().equals(userId) && !notification.getReceiverId().equals(0)) {
+        // Check permissions (must be for this user OR global)
+        if (!userId.equals(notification.getReceiverId()) && !Integer.valueOf(0).equals(notification.getReceiverId())) {
              throw new ServiceException("无权操作此通知");
         }
         
-        // 简单处理：全平台通知暂不支持单独标记已读，或根据实际业务扩展
-        if (notification.getReceiverId().equals(0)) {
+        // Only mark personal notifications as read
+        if (Integer.valueOf(0).equals(notification.getReceiverId())) {
             return; 
         }
 
         notification.setIsRead(1);
         this.updateById(notification);
+    }
+
+    @Override
+    public void markAllAsRead(Integer userId) {
+        LambdaUpdateWrapper<Notification> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.set(Notification::getIsRead, 1)
+                     .eq(Notification::getReceiverId, userId)
+                     .eq(Notification::getIsRead, 0);
+        this.update(updateWrapper);
     }
 }

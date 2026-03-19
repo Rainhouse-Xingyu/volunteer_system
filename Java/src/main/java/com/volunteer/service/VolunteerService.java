@@ -29,4 +29,11 @@ public interface VolunteerService extends IService<VolunteerProfile> {
      * @return Leaderboard data
      */
     Map<String, Object> getLeaderboard(Integer userId);
+
+    /**
+     * 获取推荐活动（不冲突的活动）
+     * @param userId 用户ID
+     * @return 推荐的活动
+     */
+    com.volunteer.entity.Activity getRecommendedActivity(Integer userId);
 }

@@ -1,7 +1,7 @@
 server:
   port: 8080
   servlet:
-    context-path: /api
+    context-path: /
 
 spring:
   application:
@@ -21,16 +21,12 @@ spring:
     username: root
     password: rootZAQ!2wsx
 
-# Knife4j 文档配置
-knife4j:
-  enable: true
-
   # Redis 配置
   data:
     redis:
       host: 8.130.76.85
       port: 6379
-      password: "20022453"
+      password: 20022453
       database: 0
       timeout: 5000
       lettuce:
@@ -50,6 +46,10 @@ knife4j:
       fail-on-empty-beans: false
     deserialization:
       fail-on-unknown-properties: false
+
+# Knife4j 文档配置
+knife4j:
+  enable: true
 
 # MyBatis Plus 配置
 mybatis-plus:

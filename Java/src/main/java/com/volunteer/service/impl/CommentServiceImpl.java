@@ -50,7 +50,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         // 3. 检查该用户是否已经对该活动发表过评论（防止重复评价）
         LambdaQueryWrapper<Comment> commentWrapper = new LambdaQueryWrapper<>();
         commentWrapper.eq(Comment::getUserId, userId)
-                      .eq(Comment::getActivityId, activityId);
+                      .eq(Comment::getTargetId, activityId)
+                      .eq(Comment::getTargetType, "activity");
+        
         if (this.count(commentWrapper) > 0) {
             throw new ServiceException("您已经评价过该活动，请勿重复评价");
         }
@@ -58,7 +60,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         // 4. 插入评价
         Comment comment = new Comment();
         comment.setUserId(userId);
-        comment.setActivityId(activityId);
+        comment.setTargetId(activityId);
+        comment.setTargetType("activity");
         comment.setContent(content);
         // createdAt 使用 SQL 默认时间
         

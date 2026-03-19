@@ -51,6 +51,16 @@ public interface ActivityService extends IService<Activity> {
      */
     String generateSignToken(Integer activityId, Integer organizerId);
 
+
+    /**
+     * 获取组织者发布的活动
+     * @param current 页码
+     * @param size 页大小
+     * @param organizerId 组织者ID
+     * @return 分页结果
+     */
+    IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId);
+
     /**
      * 审核活动
      * @param activityId 活动ID

@@ -19,6 +19,9 @@ public class FileUploadController {
     // 绑定配置文件中的上传路径，默认当前项目下的 uploads 目录
     @Value("${file.upload-dir:./uploads/}")
     private String uploadDir;
+    
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
 
     @PostMapping("/upload")
     public Result<String> upload(@RequestParam("file") MultipartFile file) {
@@ -44,8 +47,17 @@ public class FileUploadController {
             
             // 返回访问路径 (需配合 WebConfig 资源映射)
             // 假设映射路径为 /uploads/** -> file:./uploads/
-            // 返回全路径或者相对路径，这里返回相对路径供前端拼接
-            return Result.success("/uploads/" + newFilename);
+            // 如果 server.servlet.context-path 配置了 /api，则返回 /api/uploads/xxx
+            String path = "/uploads/" + newFilename;
+            String cp = contextPath;
+            if (cp != null && !cp.isEmpty()) {
+                // Remove trailing slash if exists to avoid double slash
+                if (cp.endsWith("/")) {
+                    cp = cp.substring(0, cp.length() - 1);
+                }
+                path = cp + path;
+            }
+            return Result.success(path);
         } catch (IOException e) {
             e.printStackTrace();
             return Result.error(500, "文件上传失败");

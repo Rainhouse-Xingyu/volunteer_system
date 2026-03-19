@@ -14,10 +14,14 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface RegistrationMapper extends BaseMapper<Registration> {
 
-    @Select("SELECT r.*, a.title as activityTitle, a.location, a.start_time, a.end_time " +
+    @Select("<script>" +
+            "SELECT r.*, a.title as activityTitle, a.location, a.start_time, a.end_time, " +
+            "(SELECT COUNT(1) FROM comments c WHERE c.target_id = r.activity_id AND c.user_id = r.volunteer_id AND c.target_type = 'activity') > 0 AS has_commented " +
             "FROM registrations r " +
             "LEFT JOIN activities a ON r.activity_id = a.activity_id " +
             "WHERE r.volunteer_id = #{userId} " +
-            "ORDER BY r.check_in_time DESC")
-    IPage<RegistrationDTO> selectMyRegistrations(IPage<RegistrationDTO> page, @Param("userId") Integer userId);
+            "<if test='status != null'> AND r.reg_status = #{status} </if>" +
+            "ORDER BY r.create_time DESC" +
+            "</script>")
+    IPage<RegistrationDTO> selectMyRegistrations(IPage<RegistrationDTO> page, @Param("userId") Integer userId, @Param("status") Integer status);
 }

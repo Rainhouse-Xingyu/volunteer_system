@@ -19,6 +19,8 @@ public class RegistrationDTO implements Serializable {
     private LocalDateTime checkInTime;
     private Integer checkinStatus; // 0未签到, 1已签到
     
+    private LocalDateTime createTime; // Create Time
+
     // 活动信息快照
     private String activityTitle;
     private String location;
@@ -27,7 +29,19 @@ public class RegistrationDTO implements Serializable {
 
     // 志愿者信息 (关联查询补充)
     private String volunteerName; // 志愿者姓名
+    
+    // Alias for frontend compatibility
+    public String getUsername() {
+        return this.volunteerName;
+    }
+
     private String studentId;     // 学号
     private String phone;         // 手机号
+    private String avatarUrl;     // 志愿者头像
+
+    /**
+     * 是否已评价
+     */
+    private Boolean hasCommented;
     
 }
