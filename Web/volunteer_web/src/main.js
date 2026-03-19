@@ -1,18 +1,19 @@
-import { createApp } from 'vue';
-import App from './App.vue';
-import router from './router';
-import 'vant/lib/index.css'; // 引入 Vant 样式
-import { Button, Form, Field, CellGroup, Toast, RadioGroup, Radio } from 'vant';
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import App from './App.vue'
+import router from './router'
 
-const app = createApp(App);
+const app = createApp(App)
 
-app.use(router);
-app.use(Button);
-app.use(Form);
-app.use(Field);
-app.use(CellGroup);
-app.use(RadioGroup);
-app.use(Radio);
-app.use(Toast);
+app.use(createPinia())
+app.use(router)
+app.use(ElementPlus)
 
-app.mount('#app');
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component)
+}
+
+app.mount('#app')

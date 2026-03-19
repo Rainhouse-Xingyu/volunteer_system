@@ -1,0 +1,9 @@
+/* Reset default styles */
+:root {
+  --van-primary-color: #667eea;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
