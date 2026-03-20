@@ -81,7 +81,7 @@
                                 <el-icon><Location /></el-icon> {{ item.location || '线上/线下' }}
                              </div>
                              <div class="meta-part">
-                                <el-icon><User /></el-icon> {{ item.registeredCount || 0 }}/{{ item.maxPeople }} 已报名
+                                <el-icon><User /></el-icon> {{ item.currentParticipants || 0 }}/{{ item.quota }} 已报名
                              </div>
                         </div>
 

@@ -65,4 +65,24 @@ public class RegistrationController {
         String code = registrationService.generateCheckInCode(activityId, currentUser.getUserId());
         return Result.success(code);
     }
+
+    /**
+     * 评价志愿者 (仅组织者)
+     * POST /registration/assess
+     * { "id": 123, "assessment": "Excellent"/"Good"/"Fail" }
+     */
+    @RequireRole("organizer")
+    @PostMapping("/assess")
+    public Result<Void> assessVolunteer(@RequestBody Map<String, Object> param, HttpServletRequest request) {
+        if (!param.containsKey("id") || !param.containsKey("assessment")) {
+             return Result.error(400, "参数缺失");
+        }
+        Integer regId = (Integer) param.get("id");
+        String assessment = (String) param.get("assessment");
+        
+        com.volunteer.entity.User currentUser = (com.volunteer.entity.User) request.getAttribute("currentUser");
+        registrationService.assessVolunteer(regId, assessment, currentUser.getUserId());
+        
+        return Result.success();
+    }
 }

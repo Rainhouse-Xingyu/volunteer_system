@@ -25,6 +25,12 @@ const routes = [
         meta: { title: '仪表盘', requiresAuth: true }
       },
       {
+        path: 'organizer-dashboard',
+        name: 'OrganizerDashboard',
+        component: () => import('@/views/Dashboard.vue'),
+        meta: { title: '工作台', requiresAuth: true }
+      },
+      {
         path: 'home',
         name: 'Opportunities',
         component: () => import('@/views/Home.vue'),

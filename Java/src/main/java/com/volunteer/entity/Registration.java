@@ -58,6 +58,11 @@ public class Registration implements Serializable {
     private Integer isCompleted;
 
     /**
+     * 评价: 优秀, 良好, 不合格
+     */
+    private String assessment;
+
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")

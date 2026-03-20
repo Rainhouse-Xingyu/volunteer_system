@@ -87,6 +87,14 @@ public interface RegistrationService extends IService<Registration> {
      * @return 签到Token
      */
     String generateCheckInCode(Integer activityId, Integer organizerId);
+
+    /**
+     * 对志愿者进行评价 (优秀/良好/不合格)
+     * @param registrationId 报名ID
+     * @param assessment 评价内容
+     * @param organizerId 组织者ID (校验权限)
+     */
+    void assessVolunteer(Integer registrationId, String assessment, Integer organizerId);
 }
 
 

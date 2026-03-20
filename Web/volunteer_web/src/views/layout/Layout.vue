@@ -142,7 +142,7 @@ const volunteerMenu = [
 ]
 
 const organizerMenu = [
-  { index: '/dashboard', icon: Odometer, title: '工作台' },
+  { index: '/organizer-dashboard', icon: Odometer, title: '工作台' },
   { index: '/organizer', icon: Briefcase, title: '活动管理' },
   { index: '/news/publish', icon: EditPen, title: '资讯发布' },
   { index: '/message', icon: Bell, title: '消息通知' },

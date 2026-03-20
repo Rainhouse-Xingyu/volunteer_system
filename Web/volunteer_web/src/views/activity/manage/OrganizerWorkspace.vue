@@ -74,7 +74,7 @@
         <div class="progress-section">
           <div class="progress-info">
             <span>申请人数</span>
-            <span>{{ item.registeredCount || 0 }} / {{ item.maxPeople }}</span>
+            <span>{{ item.currentParticipants || 0 }} / {{ item.quota }}</span>
           </div>
           <el-progress :percentage="calculatePercentage(item)" :show-text="false" />
         </div>
@@ -176,26 +176,27 @@ const formatDate = (date) => {
 }
 
 const calculatePercentage = (item) => {
-    if (!item.maxPeople) return 0
-    return Math.min(Math.round((item.registeredCount || 0) / item.maxPeople * 100), 100)
+    if (!item.quota) return 0
+    return Math.min(Math.round((item.currentParticipants || 0) / item.quota * 100), 100)
 }
 
 const fetchData = async () => {
     loading.value = true
     try {
-        // Mocking status logic. Frontend filtering might be needed if API doesn't support status
-        // Assuming getMyActivities accepts status
-        let status = null
-        if (activeTab.value === 'approval_center') {
-            // Logic for approval center: show activities that are recruiting or ongoing?
-            // Or maybe separate API endpoint.
-            // For now, fetch all and filter in frontend if API is simple
-            status = '1,2' // Example
+        let params = {}
+        if (activeTab.value === 'my_activities') {
+            // My activities: Only show Recruiting (1) and Ongoing (2)
+            params.status = '1,2'
+        } else if (activeTab.value === 'approval_center') {
+            // Approval center: Exclude finished activities
+            // Usually only Recruiting (1) and Ongoing (2) accept/have pending volunteers
+            params.status = '1,2'
         } else if (activeTab.value === 'completed') {
-            status = 3
+            // Completed: Only show Finished (3)
+            params.status = '3'
         }
 
-        const res = await getMyActivities(currentPage.value, pageSize.value, { status })
+        const res = await getMyActivities(currentPage.value, pageSize.value, params)
         if (res.code === 200) {
             list.value = res.data.records || []
             total.value = res.data.total || 0

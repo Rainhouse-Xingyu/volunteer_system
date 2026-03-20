@@ -199,6 +199,7 @@ public class ActivityController {
     public Result<IPage<Activity>> getMyActivities(
         @RequestParam(defaultValue = "1") int current,
         @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false) String status,
         HttpServletRequest request) {
         
         User currentUser = (User) request.getAttribute("currentUser");
@@ -206,6 +207,6 @@ public class ActivityController {
             return Result.error(401, "请先登录");
         }
         
-        return Result.success(activityService.getMyCreatedActivities(current, size, currentUser.getUserId()));
+        return Result.success(activityService.getMyCreatedActivities(current, size, currentUser.getUserId(), status));
     }
 }

@@ -98,29 +98,54 @@
           </div>
         </el-card>
 
-        <!-- Featured Activity -->
+        <!-- Featured Activity / Organizer Activities -->
         <el-card shadow="hover" class="featured-card">
-          <div v-if="recommendedActivity" class="activity-content-wrapper">
-            <div class="activity-header">
-              <div class="icon-box">
-                <el-icon :size="32" color="#67C23A"><Sunny /></el-icon>
+          <template v-if="!isOrganizer">
+              <div v-if="recommendedActivity" class="activity-content-wrapper">
+                <div class="activity-header">
+                  <div class="icon-box">
+                    <el-icon :size="32" color="#67C23A"><Sunny /></el-icon>
+                  </div>
+                  <div class="activity-title-section">
+                    <h3>{{ recommendedActivity.title }}</h3>
+                    <span class="org-name">{{ recommendedActivity.category || '推荐活动' }}</span>
+                  </div>
+                  <el-tag type="info" effect="plain">{{ formatDuration(recommendedActivity.startTime, recommendedActivity.endTime) }}</el-tag>
+                </div>
+                <p class="activity-desc">{{ recommendedActivity.description }}</p>
+                <div class="activity-meta">
+                  <div class="meta-item"><el-icon><Calendar /></el-icon> {{ formatDate(recommendedActivity.startTime) }}</div>
+                  <div class="meta-item"><el-icon><Clock /></el-icon> {{ formatTimeRange(recommendedActivity.startTime, recommendedActivity.endTime) }}</div>
+                  <div class="meta-item"><el-icon><Location /></el-icon> {{ recommendedActivity.location }}</div>
+                  <div class="meta-item"><el-icon><User /></el-icon> {{ (recommendedActivity.currentParticipants || 0) }}/{{ recommendedActivity.quota }} 已报名</div>
+                </div>
+                <el-button type="primary" class="signup-btn" @click="goToDetail(recommendedActivity.activityId)">立即报名</el-button>
               </div>
-              <div class="activity-title-section">
-                <h3>{{ recommendedActivity.title }}</h3>
-                <span class="org-name">{{ recommendedActivity.category || '推荐活动' }}</span>
+              <el-empty v-else description="暂无适合您的推荐活动，请稍后再试" />
+          </template>
+          <template v-else>
+              <div class="organizer-activities-wrapper">
+                 <div class="card-header-inner mb-card">
+                    <h3>最近进行中的活动</h3>
+                    <el-link type="primary" @click="$router.push('/organizer')">查看更多 <el-icon><ArrowRight /></el-icon></el-link>
+                 </div>
+                 
+                 <div v-if="organizerActivities.length > 0">
+                    <div v-for="item in organizerActivities" :key="item.activityId" class="org-activity-item">
+                        <div class="org-act-left">
+                            <h4 class="org-act-title">{{ item.title }}</h4>
+                            <div class="org-act-meta">
+                                <el-tag size="small" :type="item.status === 2 ? 'success' : 'primary'">{{ item.status === 2 ? '进行中' : '招募中' }}</el-tag>
+                                <span class="meta-text"><el-icon><Calendar /></el-icon> {{ formatDate(item.startTime) }}</span>
+                                <span class="meta-text"><el-icon><User /></el-icon> {{ item.currentParticipants || 0 }}/{{ item.quota }}</span>
+                            </div>
+                        </div>
+                        <el-button size="small" plain @click="goToDetail(item.activityId)">查看信息</el-button>
+                    </div>
+                 </div>
+                 <el-empty v-else description="暂无进行中的活动" />
               </div>
-              <el-tag type="info" effect="plain">{{ formatDuration(recommendedActivity.startTime, recommendedActivity.endTime) }}</el-tag>
-            </div>
-            <p class="activity-desc">{{ recommendedActivity.description }}</p>
-            <div class="activity-meta">
-              <div class="meta-item"><el-icon><Calendar /></el-icon> {{ formatDate(recommendedActivity.startTime) }}</div>
-              <div class="meta-item"><el-icon><Clock /></el-icon> {{ formatTimeRange(recommendedActivity.startTime, recommendedActivity.endTime) }}</div>
-              <div class="meta-item"><el-icon><Location /></el-icon> {{ recommendedActivity.location }}</div>
-              <div class="meta-item"><el-icon><User /></el-icon> {{ (recommendedActivity.currentParticipants || 0) }}/{{ recommendedActivity.maxParticipants }} 已报名</div>
-            </div>
-            <el-button type="primary" class="signup-btn" @click="goToDetail(recommendedActivity.activityId)">立即报名</el-button>
-          </div>
-          <el-empty v-else description="暂无适合您的推荐活动，请稍后再试" />
+          </template>
         </el-card>
       </div>
 
@@ -144,15 +169,26 @@
               </div>
               <div class="j-time">{{ formatDateTime(item.startTime) }}</div>
               
-              <el-button 
-                v-if="item.displayStatus === 'ongoing'" 
-                plain 
-                type="primary" 
-                size="small" 
-                style="width: 100%; margin-top: 10px" 
-                @click="openCheckIn(item.activityId)">
-                <el-icon><FullScreen /></el-icon> 签到
-              </el-button>
+              <template v-if="item.displayStatus === 'ongoing'">
+                 <el-button 
+                    v-if="!isOrganizer"
+                    plain 
+                    type="primary" 
+                    size="small" 
+                    style="width: 100%; margin-top: 10px" 
+                    @click="openCheckIn(item.activityId)">
+                    <el-icon><FullScreen /></el-icon> 签到
+                  </el-button>
+                 <el-button 
+                    v-else
+                    plain 
+                    type="success" 
+                    size="small" 
+                    style="width: 100%; margin-top: 10px" 
+                    @click="showQrCode(item.activityId)">
+                    <el-icon><FullScreen /></el-icon> 签到码
+                  </el-button>
+              </template>
             </div>
           </div>
         </el-card>
@@ -197,6 +233,27 @@
             <el-button plain class="cancel-btn" @click="closeCheckIn">取消</el-button>
         </div>
     </el-dialog>
+
+    <!-- Organizer QR Code Dialog -->
+    <el-dialog
+        v-model="qrDialogVisible"
+        title="活动签到码"
+        width="360px"
+        center
+        @close="handleQrClose"
+    >
+        <div class="qr-container" style="text-align: center; padding: 20px;">
+            <div v-loading="loadingQr" style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <img v-if="qrUrl" :src="qrUrl" alt="活动签到二维码" style="width: 200px; height: 200px;" />
+            </div>
+            <div style="margin-top: 20px;">
+                <el-tag type="info" effect="plain" round>
+                   <el-icon><Timer /></el-icon> {{ qrTimeLeft }}秒后刷新
+                </el-tag>
+            </div>
+            <p style="margin-top: 10px; color: #909399; font-size: 13px;">请志愿者使用App或小程序扫描签到</p>
+        </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -204,16 +261,17 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import { checkIn, getRecommendedActivity, getMyRegistrations, getMyActivities } from '@/api/activity'
+import { checkIn, getRecommendedActivity, getMyRegistrations, getMyActivities, getSignToken } from '@/api/activity'
 import { getVolunteerStats } from '@/api/user'
 import { getMyNotifications } from '@/api/notification'
 import { getMyNewsList } from '@/api/news'
 import {
   User, Timer, Star, Trophy, Search, Calendar, Clock, Location,
-  Sunny, FullScreen, Bell, InfoFilled, Briefcase, Document
+  Sunny, FullScreen, Bell, InfoFilled, Briefcase, Document, ArrowRight
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { Html5QrcodeScanner } from "html5-qrcode"
+import QRCode from 'qrcode'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
@@ -229,8 +287,73 @@ const activeDate = ref('全部日期')
 const showCheckIn = ref(false)
 const checkInActivityId = ref(null)
 const recommendedActivity = ref(null)
+const organizerActivities = ref([])
 const journeyList = ref([])
 const latestNotification = ref(null)
+
+// QR Code Logic
+const qrDialogVisible = ref(false)
+const qrUrl = ref('')
+const qrTimeLeft = ref(60)
+const loadingQr = ref(false)
+let qrTimer = null
+let countdownTimer = null
+const currentActivityId = ref(null)
+
+const showQrCode = async (activityId) => {
+    currentActivityId.value = activityId
+    qrDialogVisible.value = true
+    await refreshQr()
+    startQrTimers()
+}
+
+const refreshQr = async () => {
+    if (!currentActivityId.value) return
+    if (!qrUrl.value) loadingQr.value = true
+    
+    try {
+        const res = await getSignToken(currentActivityId.value)
+        if (res.code === 200) {
+            const content = JSON.stringify({
+                activityId: parseInt(currentActivityId.value),
+                signToken: res.data
+            })
+            qrUrl.value = await QRCode.toDataURL(content, { margin: 1, width: 250 })
+            qrTimeLeft.value = 60
+        }
+    } catch (e) {
+        console.error(e)
+        // ElMessage.error('获取签到码失败')
+    } finally {
+        loadingQr.value = false
+    }
+}
+
+const startQrTimers = () => {
+    stopQrTimers()
+    qrTimer = setInterval(() => {
+        refreshQr()
+    }, 60000)
+    
+    countdownTimer = setInterval(() => {
+        if (qrTimeLeft.value > 0) {
+            qrTimeLeft.value--
+        }
+    }, 1000)
+}
+
+const stopQrTimers = () => {
+    if (qrTimer) clearInterval(qrTimer)
+    if (countdownTimer) clearInterval(countdownTimer)
+    qrTimer = null
+    countdownTimer = null
+}
+
+const handleQrClose = () => {
+    stopQrTimers()
+    qrDialogVisible.value = false
+    currentActivityId.value = null
+}
 
 const activityTypes = ['全部', '环境保护', '教育', '食品营养', '动物福利', '老年关怀']
 const dateFilters = ['全部日期', '今天', '本周', '本月']
@@ -274,49 +397,122 @@ const fetchStats = async () => {
 
 const fetchRecommendation = async () => {
     try {
-        const res = await getRecommendedActivity()
-        if (res.code === 200 && res.data) {
-            recommendedActivity.value = res.data
+        if (isOrganizer.value) {
+            // Organizer: Fetch Recent Ongoing/Upcoming Activities (limit 3)
+            // Prioritize Ongoing(2) then Recruiting(1)
+            const res = await getMyActivities(1, 10, {}) // Fetch 10 to filter
+            if (res.code === 200) {
+                const now = new Date().getTime()
+                let list = (res.data.records || []).filter(item => {
+                    // Ongoing or Recruiting
+                    // Also simple check: status must be 1 or 2
+                    return item.status === 1 || item.status === 2
+                })
+                
+                // Sort: Ongoing first, then by start time soonest
+                list.sort((a, b) => {
+                    if (a.status !== b.status) {
+                         // 2:Ongoing, 1:Recruiting. We want 2 first.
+                        return b.status - a.status 
+                    }
+                    return new Date(a.startTime) - new Date(b.startTime)
+                })
+                
+                organizerActivities.value = list.slice(0, 3)
+            }
+        } else {
+            // Volunteer: Fetch Recommendation
+            const res = await getRecommendedActivity()
+            if (res.code === 200 && res.data) {
+                recommendedActivity.value = res.data
+            }
         }
     } catch (error) {
-        console.error("Failed to fetch recommendation", error)
+        console.error("Failed to fetch recommendation/activities", error)
     }
 }
 
 const fetchJourney = async () => {
     try {
-        const res = await getMyRegistrations(1, 100)
-        if (res.code === 200) {
-            const records = res.data.records || []
-            const now = new Date()
-            
-            journeyList.value = records.map(item => {
-                const start = new Date(item.startTime)
-                const end = new Date(item.endTime)
-                let status = 'none'
-
-                // 3 days before start -> Upcoming
-                const threeDaysBefore = new Date(start)
-                threeDaysBefore.setDate(start.getDate() - 3)
-                
-                // 12 hours after end -> Ended
-                const twelveHoursAfter = new Date(end)
-                twelveHoursAfter.setHours(end.getHours() + 12)
-
-                if (now < start && item.regStatus === 1) {
-                     // Check if within 3 days
-                     if (now >= threeDaysBefore) {
-                         status = 'upcoming'
+        let records = []
+        if (isOrganizer.value) {
+            // Organizer Logic
+            const res = await getMyActivities(1, 100, {})
+            if (res.code === 200) {
+                 const activities = res.data.records || []
+                 const now = new Date().getTime()
+                 
+                 records = activities.map(item => {
+                     // Check if approved (status 1, 2, 3)
+                     if (![1, 2, 3].includes(item.status)) return null
+                     
+                     const start = new Date(item.startTime).getTime()
+                     const end = new Date(item.endTime).getTime()
+                     let displayStatus = 'none'
+                     
+                     // Helper times
+                     const threeDaysBefore = start - (3 * 24 * 3600 * 1000)
+                     const sixHoursAfter = end + (6 * 3600 * 1000)
+                     
+                     if (now >= threeDaysBefore && now < start) {
+                         displayStatus = 'upcoming'
+                     } else if (now >= start && now <= end) {
+                         displayStatus = 'ongoing'
+                     } else if (now > end && now <= sixHoursAfter) {
+                         displayStatus = 'ended'
                      }
-                } else if (now >= start && now <= end && item.regStatus === 1) {
-                    status = 'ongoing'
-                } else if (now > end && now <= twelveHoursAfter && item.regStatus === 1) {
-                    status = 'ended'
-                }
+                     
+                     if (displayStatus !== 'none') {
+                         return { 
+                             ...item, 
+                             startTime: item.startTime, 
+                             endTime: item.endTime, 
+                             activityTitle: item.title, 
+                             displayStatus, 
+                             activityId: item.activityId 
+                         }
+                     }
+                     return null
+                 }).filter(item => item !== null)
+                 
+                 records.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+            }
+        } else {
+            // Volunteer Logic
+            const res = await getMyRegistrations(1, 100)
+            if (res.code === 200) {
+                const regRecords = res.data.records || []
+                const now = new Date()
 
-                return { ...item, displayStatus: status }
-            }).filter(item => item.displayStatus !== 'none')
+                records = regRecords.map(item => {
+                    const start = new Date(item.startTime)
+                    const end = new Date(item.endTime)
+                    let status = 'none'
+
+                    // 3 days before start -> Upcoming
+                    const threeDaysBefore = new Date(start)
+                    threeDaysBefore.setDate(start.getDate() - 3)
+                    
+                    // 12 hours after end -> Ended
+                    const twelveHoursAfter = new Date(end)
+                    twelveHoursAfter.setHours(end.getHours() + 12)
+
+                    if (now < start && item.regStatus === 1) {
+                         // Check if within 3 days
+                         if (now >= threeDaysBefore) {
+                             status = 'upcoming'
+                         }
+                    } else if (now >= start && now <= end && item.regStatus === 1) {
+                        status = 'ongoing'
+                    } else if (now > end && now <= twelveHoursAfter && item.regStatus === 1) {
+                        status = 'ended'
+                    }
+
+                    return { ...item, displayStatus: status }
+                }).filter(item => item.displayStatus !== 'none')
+            }
         }
+        journeyList.value = records
     } catch (error) {
        console.error("Failed to fetch journey", error) 
     }
@@ -334,7 +530,14 @@ const fetchLatestNotification = async () => {
 }
 
 const goToDetail = (id) => {
-    router.push(`/activity/detail/${id}`)
+    // Check if organizer or volunteer
+    if (isOrganizer.value) {
+        // Organizer goes to detail or manage page? "查看信息" often implies viewing the full info
+        // Let's assume detail page for now as per previous logic, or maybe '/organizer' if they want to manage
+        router.push(`/activity/${id}`)
+    } else {
+        router.push(`/activity/${id}`)
+    }
 }
 
 const formatDate = (dateStr) => {
@@ -406,20 +609,40 @@ const onScanSuccess = async (decodedText, decodedResult) => {
         showCheckIn.value = false
     }
 
+    let finalSignToken = decodedText;
+    let scannedActivityId = null;
+
+    try {
+        // Try parsing JSON if the QR content is a JSON string
+        const parsed = JSON.parse(decodedText);
+        if (parsed && typeof parsed === 'object') {
+            if (parsed.signToken) finalSignToken = parsed.signToken;
+            if (parsed.activityId) scannedActivityId = parsed.activityId;
+        }
+    } catch (e) {
+        // Not JSON, use decodedText as is
+    }
+
+    // Verify activity ID if present in QR code
+    if (scannedActivityId && Number(scannedActivityId) !== Number(checkInActivityId.value)) {
+        ElMessage.error('签到码不属于当前活动');
+        return;
+    }
+
     // Call API
     try {
         const res = await checkIn({ 
             activityId: checkInActivityId.value,
-            signToken: decodedText 
+            signToken: finalSignToken 
         })
         if (res.code === 200) {
             ElMessage.success('签到成功！')
-            // Refresh logic if needed
+            fetchJourney()
         } else {
             ElMessage.error(res.message || '签到失败')
         }
     } catch (error) {
-        ElMessage.error('签到请求失败')
+        ElMessage.error(error.message || '签到请求失败')
     }
 }
 
@@ -474,6 +697,49 @@ const closeCheckIn = () => {
 .time-icon { background: #e6f7ff; color: #096dd9; }
 .star-icon { background: #fffbe6; color: #faad14; }
 .rank-icon { background: #f6ffed; color: #52c41a; }
+
+/* Organizer Activities Style */
+.organizer-activities-wrapper {
+  padding: 0;
+}
+.card-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.org-activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #f2f3f5;
+}
+.org-activity-item:last-child {
+  border-bottom: none;
+}
+.org-act-left {
+  flex: 1;
+}
+.org-act-title {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.org-act-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #909399;
+  font-size: 13px;
+}
+.meta-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 
 .stats-value {
   font-size: 24px;

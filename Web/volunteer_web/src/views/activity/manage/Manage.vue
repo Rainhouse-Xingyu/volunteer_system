@@ -47,14 +47,25 @@
                 </template>
             </el-table-column>
 
+            <el-table-column label="评价结果" width="120">
+                <template #default="{ row }">
+                    <el-tag v-if="row.assessment" :type="row.assessment === 'Fail' ? 'danger' : 'success'">{{ row.assessment }}</el-tag>
+                    <span v-else>-</span>
+                </template>
+            </el-table-column>
+
             <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
                     <div v-if="row.regStatus === 0">
                         <el-button size="small" type="success" @click="handleAudit(row, 1)">录用</el-button>
                         <el-button size="small" type="danger" @click="handleAudit(row, 2)">拒绝</el-button>
                     </div>
+                    <div v-else-if="row.regStatus === 1 && row.checkinStatus === 1">
+                        <el-button v-if="!row.assessment" size="small" type="primary" @click="openAssessDialog(row)">评价</el-button>
+                        <span v-else class="action-text disabled">已评价</span>
+                    </div>
                     <div v-else>
-                         <span class="action-text disabled">已处理</span>
+                         <span class="action-text disabled">{{ getStatusText(row.regStatus) }}</span>
                     </div>
                 </template>
             </el-table-column>
@@ -70,13 +81,34 @@
             />
         </div>
     </div>
+
+    <el-dialog v-model="assessDialogVisible" title="评价志愿者" width="400px">
+        <el-form :model="assessForm" label-width="120px">
+            <el-form-item label="评价结果">
+                <el-select v-model="assessForm.assessment" placeholder="请选择">
+                    <el-option label="优秀 (Excellent)" value="Excellent" />
+                    <el-option label="良好 (Good)" value="Good" />
+                    <el-option label="不合格 (Fail)" value="Fail" />
+                </el-select>
+            </el-form-item>
+             <p v-if="assessForm.assessment === 'Fail'" style="color: red; margin-left: 120px;">
+                注意：不合格将不发放积分。
+            </p>
+        </el-form>
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="assessDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="submitAssessment">确定</el-button>
+            </span>
+        </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getRegistrationList, auditRegistration } from '@/api/activity' // Assuming this is correct
+import { getRegistrationList, auditRegistration, assessVolunteer } from '@/api/activity' // Assuming this is correct
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -89,7 +121,45 @@ const list = ref([])
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
-const total = ref(0)
+const total = ref(0) // Assuming this is where I insert
+
+const assessDialogVisible = ref(false)
+const currentAssessItem = ref({})
+const assessForm = ref({
+    assessment: 'Good'
+})
+const assessOptions = [
+    { label: '优秀 (Excellent)', value: 'Excellent' },
+    { label: '良好 (Good)', value: 'Good' },
+    { label: '不合格 (Fail)', value: 'Fail' }
+]
+
+const openAssessDialog = (row) => {
+    currentAssessItem.value = row
+    assessForm.value.assessment = row.assessment || 'Good'
+    assessDialogVisible.value = true
+}
+
+const submitAssessment = async () => {
+    if(!currentAssessItem.value.regId) return
+    try {
+        const res = await assessVolunteer({
+            id: currentAssessItem.value.regId,
+            assessment: assessForm.value.assessment
+        })
+        if(res.code === 200) {
+            ElMessage.success('评价成功')
+            assessDialogVisible.value = false
+            fetchData() // Refresh list
+        } else {
+            ElMessage.error(res.message || '评价失败')
+        }
+    } catch(e) {
+        console.error(e)
+        ElMessage.error('网络错误')
+    }
+}
+
 
 
 const formatTime = (t) => dayjs(t).format('MM-DD HH:mm')

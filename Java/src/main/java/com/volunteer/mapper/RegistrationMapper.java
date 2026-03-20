@@ -15,7 +15,7 @@ import org.apache.ibatis.annotations.Select;
 public interface RegistrationMapper extends BaseMapper<Registration> {
 
     @Select("<script>" +
-            "SELECT r.*, a.title as activityTitle, a.location, a.start_time, a.end_time, " +
+            "SELECT r.*, a.title as activityTitle, a.location, a.start_time, a.end_time, a.quota, a.current_participants as currentParticipants, " +
             "(SELECT COUNT(1) FROM comments c WHERE c.target_id = r.activity_id AND c.user_id = r.volunteer_id AND c.target_type = 'activity') > 0 AS has_commented " +
             "FROM registrations r " +
             "LEFT JOIN activities a ON r.activity_id = a.activity_id " +

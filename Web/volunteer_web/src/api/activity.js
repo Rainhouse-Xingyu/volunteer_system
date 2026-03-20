@@ -118,3 +118,12 @@ export function auditActivity(data) {
     data
   })
 }
+
+// Organizer: Assess volunteer (score/points)
+export function assessVolunteer(data) {
+  return request({
+    url: '/registration/assess',
+    method: 'post',
+    data
+  })
+}

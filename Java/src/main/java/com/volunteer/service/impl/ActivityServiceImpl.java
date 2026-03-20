@@ -30,6 +30,9 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
 
     @Autowired
     private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+    
+    @Autowired
+    private com.volunteer.mapper.UserMapper userMapper;
 
     @Autowired
     private NotificationService notificationService;
@@ -113,13 +116,33 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         // 1. 先查 Redis
         Object activityObj = redisTemplate.opsForValue().get(key);
         if (activityObj != null) {
-            return (Activity) activityObj;
+            Activity a = (Activity) activityObj;
+            // 补充组织者信息（若缓存中没有或缓存失效）
+            if (a.getOrganizerName() == null && a.getOrganizerId() != null) {
+                com.volunteer.entity.User u = userMapper.selectById(a.getOrganizerId());
+                if (u != null) {
+                    a.setOrganizerName(u.getNickname() != null ? u.getNickname() : u.getUsername());
+                    a.setOrganizerAvatar(u.getAvatarUrl());
+                    // 更新缓存
+                    redisTemplate.opsForValue().set(key, a, 1, TimeUnit.HOURS);
+                }
+            }
+            return a;
         }
 
         // 2. Redis 没有，查数据库
         Activity activity = this.getById(activityId);
         if (activity == null) {
             throw new ServiceException("活动不存在");
+        }
+        
+        // 补充组织者信息
+        if (activity.getOrganizerId() != null) {
+            com.volunteer.entity.User u = userMapper.selectById(activity.getOrganizerId());
+            if (u != null) {
+                activity.setOrganizerName(u.getNickname() != null ? u.getNickname() : u.getUsername());
+                activity.setOrganizerAvatar(u.getAvatarUrl());
+            }
         }
 
         // 3. 查到后写入 Redis (设置过期时间 1 小时，防止长期不用的数据占用大量内存)
@@ -151,25 +174,34 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         activity.setQrCodeToken(signToken);
         this.updateById(activity);
 
-        // 3. 存入 Redis (60秒过期)
+        // 3. 存入 Redis (60秒过期) -> 修改为120秒以允许时间窗口重叠
         // 需求 Key: activity:sign_token:{activityId} -> signToken (供前端轮询或查看当前Token)
         String organizerKey = "activity:sign_token:" + activityId;
-        stringRedisTemplate.opsForValue().set(organizerKey, signToken, 60, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(organizerKey, signToken, 120, TimeUnit.SECONDS);
 
         // 核心 Key: activity:sign:{token} -> activityId (供 volunteer 扫码签到反查)
         // 为了兼容 RegistrationServiceImpl 中的 checkIn 逻辑 (使用 redisTemplate<String, Object>),
         // 这里使用 redisTemplate 存储 Integer 类型的 activityId
         String checkInKey = "activity:sign:" + signToken;
-        redisTemplate.opsForValue().set(checkInKey, activityId, 60, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(checkInKey, activityId, 120, TimeUnit.SECONDS);
 
         return signToken;
     }
 
     @Override
-    public IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId) {
+    public IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId, String status) {
         Page<Activity> page = new Page<>(current, size);
         LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Activity::getOrganizerId, organizerId);
+        
+        // 动态过滤状态
+        if (status != null && !status.isEmpty()) {
+            java.util.List<Integer> statusList = java.util.Arrays.stream(status.split(","))
+                                        .map(Integer::parseInt)
+                                        .collect(java.util.stream.Collectors.toList());
+            queryWrapper.in(Activity::getStatus, statusList);
+        }
+        
         queryWrapper.orderByDesc(Activity::getCreatedAt);
         return this.page(page, queryWrapper);
     }

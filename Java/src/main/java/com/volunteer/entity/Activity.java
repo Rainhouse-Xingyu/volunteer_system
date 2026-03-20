@@ -97,4 +97,10 @@ public class Activity implements Serializable {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime createdAt;
+    
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String organizerName;
+
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String organizerAvatar;
 }

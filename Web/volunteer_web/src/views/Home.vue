@@ -66,7 +66,7 @@
                 <div class="meta-row"><el-icon><Calendar /></el-icon> {{ formatDate(item.startTime) }}</div>
                 <div class="meta-row"><el-icon><Clock /></el-icon> {{ formatTimeRange(item.startTime, item.endTime) }}</div>
                 <div class="meta-row"><el-icon><Location /></el-icon> {{ item.location }}</div>
-                <div class="meta-row"><el-icon><User /></el-icon> {{ item.registeredCount || 0 }}/{{ item.maxPeople }} 已报名</div>
+                <div class="meta-row"><el-icon><User /></el-icon> {{ item.currentParticipants || 0 }}/{{ item.quota }} 已报名</div>
             </div>
 
             <el-button type="primary" class="signup-btn" @click="toDetail(item.activityId)">立即报名</el-button>

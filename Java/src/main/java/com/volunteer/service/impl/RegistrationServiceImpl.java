@@ -126,6 +126,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
                  throw new ServiceException("报名失败：名额已满或数据冲突");
             }
             
+            // 清除活动详情缓存
+            redisTemplate.delete("activity:detail:" + activityId);
+
             // 可选：更新 Redis Set 记录用户
             String usersKey = ACTIVITY_USERS_PREFIX + activityId;
             redisTemplate.opsForSet().add(usersKey, userId);
@@ -168,6 +171,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
 
         // 3. Redis 库存回补 (原子操作 INCR)
         redisTemplate.opsForValue().increment(quotaKey);
+
+        // 清除活动详情缓存
+        redisTemplate.delete("activity:detail:" + activityId);
 
         // 4. 从 Redis 报名 Set 中移除用户
         redisTemplate.opsForSet().remove(usersKey, userId);
@@ -233,12 +239,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        Activity activity = activityMapper.selectById(activityId);
-        int points = (activity != null && activity.getRewardPoints() != null) ? activity.getRewardPoints() : 10;
-
-        // 6. 增加积分 (动态) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        // 6. 增加信用分 (1分) (积分改为评估后发放)
         UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
-        profileUpdate.setSql("points = ifnull(points, 0) + " + points + ", credit_score = ifnull(credit_score, 100) + 1")
+        profileUpdate.setSql("credit_score = ifnull(credit_score, 100) + 1")
                      .eq("user_id", userId);
         volunteerProfileMapper.update(null, profileUpdate);
     }
@@ -246,12 +249,17 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void checkIn(Integer activityId, String signToken, Integer userId) {
-        // 1. 校验 Token 时效性
-        String redisKey = "activity:sign_token:" + activityId;
-        String serverToken = stringRedisTemplate.opsForValue().get(redisKey);
+        // 1. 校验 Token 时效性 (使用 activity:sign:{token} 以支持多Token共存时间窗口)
+        String checkInKey = "activity:sign:" + signToken;
+        Object storedActivityId = redisTemplate.opsForValue().get(checkInKey);
         
-        if (serverToken == null || !serverToken.equals(signToken)) {
-            throw new ServiceException("签到码已过期或无效");
+        if (storedActivityId == null) {
+             throw new ServiceException("签到码已过期或无效");
+        }
+
+        // 校验活动ID是否匹配
+        if (!String.valueOf(storedActivityId).equals(String.valueOf(activityId))) {
+             throw new ServiceException("该签到码不属于当前活动");
         }
         
         // 2. 检查用户报名状态
@@ -287,12 +295,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         
         registrationMapper.updateById(registration);
 
-        Activity activity = activityMapper.selectById(activityId);
-        int points = (activity != null && activity.getRewardPoints() != null) ? activity.getRewardPoints() : 10;
-
-        // 6. 增加积分 (动态) 和 信用分 (1分) -> 更新 volunteer_profiles 表
+        // 6. 增加信用分 (1分) (积分改为评估后发放)
         UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
-        profileUpdate.setSql("points = ifnull(points, 0) + " + points + ", credit_score = ifnull(credit_score, 100) + 1")
+        profileUpdate.setSql("credit_score = ifnull(credit_score, 100) + 1")
                      .eq("user_id", userId);
         volunteerProfileMapper.update(null, profileUpdate);
     }
@@ -520,6 +525,9 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
                      .eq("activity_id", activityId)
                      .gt("current_participants", 0);
         activityMapper.update(null, updateWrapper);
+        
+        // 释放名额后清除Detail缓存
+        redisTemplate.delete("activity:detail:" + activityId);
     }
 
     /**
@@ -540,5 +548,63 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
          updateWrapper.setSql("current_participants = current_participants + 1")
                       .eq("activity_id", activityId);
          activityMapper.update(null, updateWrapper);
+         
+         // 增加后清除Detail缓存
+         redisTemplate.delete("activity:detail:" + activityId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void assessVolunteer(Integer registrationId, String assessment, Integer organizerId) {
+        // 1. 查询报名记录
+        Registration registration = registrationMapper.selectById(registrationId);
+        if (registration == null) {
+            throw new ServiceException("报名记录不存在");
+        }
+
+        // 2. 校验权限
+        Activity activity = activityMapper.selectById(registration.getActivityId());
+        if (activity == null) {
+            throw new ServiceException("活动不存在");
+        }
+        if (!activity.getOrganizerId().equals(organizerId)) {
+            throw new ServiceException("您无权对该活动志愿者进行评价");
+        }
+        
+        // 3. 校验状态：必须是已录取且已签到
+        if (registration.getRegStatus() != 1) {
+            throw new ServiceException("该志愿者未被录用，无法评价");
+        }
+        if (registration.getCheckinStatus() == null || registration.getCheckinStatus() != 1) {
+            throw new ServiceException("该志愿者未签到，无法评价");
+        }
+        
+        // 4. 防止重复评价
+        if (registration.getAssessment() != null && !registration.getAssessment().isEmpty()) {
+            throw new ServiceException("该志愿者已完成评价，不可重复操作");
+        }
+
+        // 5. 更新评价
+        registration.setAssessment(assessment);
+        registrationMapper.updateById(registration);
+        
+        // 6. 积分处理
+        boolean isFail = "Fail".equalsIgnoreCase(assessment) || "不合格".equals(assessment);
+        
+        if (!isFail) {
+            int points = (activity.getRewardPoints() != null) ? activity.getRewardPoints() : 10;
+            UpdateWrapper<com.volunteer.entity.VolunteerProfile> profileUpdate = new UpdateWrapper<>();
+            profileUpdate.setSql("points = ifnull(points, 0) + " + points)
+                         .eq("user_id", registration.getVolunteerId());
+            volunteerProfileMapper.update(null, profileUpdate);
+            
+            // 发送通知
+            String content = String.format("您参加的活动【%s】已被评价为【%s】，获得 %d 积分。", activity.getTitle(), assessment, points);
+            notificationService.sendNotice(registration.getVolunteerId(), "活动评价通知", content, "system_msg");
+        } else {
+            // 不合格，发送通知
+            String content = String.format("您参加的活动【%s】已被评价为【%s】，本次不获得积分。", activity.getTitle(), assessment);
+            notificationService.sendNotice(registration.getVolunteerId(), "活动评价通知", content, "system_msg");
+        }
     }
 }

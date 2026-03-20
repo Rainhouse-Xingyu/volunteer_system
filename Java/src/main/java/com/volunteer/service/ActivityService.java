@@ -57,9 +57,10 @@ public interface ActivityService extends IService<Activity> {
      * @param current 页码
      * @param size 页大小
      * @param organizerId 组织者ID
+     * @param status 状态 (可选，逗号分割)
      * @return 分页结果
      */
-    IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId);
+    IPage<Activity> getMyCreatedActivities(int current, int size, Integer organizerId, String status);
 
     /**
      * 审核活动
