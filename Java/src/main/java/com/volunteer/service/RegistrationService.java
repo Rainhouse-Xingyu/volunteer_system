@@ -95,6 +95,13 @@ public interface RegistrationService extends IService<Registration> {
      * @param organizerId 组织者ID (校验权限)
      */
     void assessVolunteer(Integer registrationId, String assessment, Integer organizerId);
+
+    /**
+     * 统计组织者名下待审核的报名数量
+     * @param organizerId 组织者ID
+     * @return 待审核数量
+     */
+    long countPendingForOrganizer(Integer organizerId);
 }
 
 

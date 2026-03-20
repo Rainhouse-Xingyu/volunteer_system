@@ -68,5 +68,12 @@ public interface ActivityService extends IService<Activity> {
      * @param status 状态 (1:通过, 4:失败)
      */
     void auditActivity(Integer activityId, Integer status);
+    
+    /**
+     * 获取组织者统计数据
+     * @param organizerId 组织者ID
+     * @return 统计Map
+     */
+    java.util.Map<String, Object> getOrganizerStats(Integer organizerId);
 }
 

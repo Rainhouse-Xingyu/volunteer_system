@@ -209,4 +209,18 @@ public class ActivityController {
         
         return Result.success(activityService.getMyCreatedActivities(current, size, currentUser.getUserId(), status));
     }
+
+    /**
+     * 获取组织者工作台统计数据
+     */
+    @RequireRole("organizer")
+    @GetMapping("/organizer/stats")
+    public Result<java.util.Map<String, Object>> getOrganizerStats(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        
+        return Result.success(activityService.getOrganizerStats(currentUser.getUserId()));
+    }
 }

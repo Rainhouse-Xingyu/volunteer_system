@@ -38,6 +38,13 @@ export function getMyRegistrations(current, size, params = {}) {
   })
 }
 
+export function getOrganizerStats() {
+  return request({
+    url: '/activity/organizer/stats',
+    method: 'get'
+  })
+}
+
 export function createActivity(data) {
   return request({
     url: '/activity/create',

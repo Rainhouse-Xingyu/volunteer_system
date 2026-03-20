@@ -130,7 +130,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyActivities, getSignToken } from '@/api/activity'
+import { getMyActivities, getSignToken, getOrganizerStats } from '@/api/activity'
 import {
   UserFilled, Timer, SuccessFilled, Calendar, Plus, View, Edit, Delete, FullScreen
 } from '@element-plus/icons-vue'
@@ -200,16 +200,24 @@ const fetchData = async () => {
         if (res.code === 200) {
             list.value = res.data.records || []
             total.value = res.data.total || 0
-            
-            // Basic stats calculation for demo (in reality, should be a separate API)
-            // Or update stats based on fetched data if it contains everything
-            stats.value.total = total.value
         }
     } catch (error) {
         console.error(error)
         ElMessage.error('加载活动列表失败')
     } finally {
         loading.value = false
+    }
+}
+
+const fetchStats = async () => {
+    try {
+        const res = await getOrganizerStats()
+        if (res.code === 200) {
+            // stats: { recruiting: number, pending: number, total: number }
+            stats.value = res.data
+        }
+    } catch (e) {
+        console.error(e)
     }
 }
 
@@ -297,6 +305,7 @@ const handleDelete = (item) => {
 
 onMounted(() => {
     fetchData()
+    fetchStats()
 })
 </script>
 

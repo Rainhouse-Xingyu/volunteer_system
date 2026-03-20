@@ -607,4 +607,27 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
             notificationService.sendNotice(registration.getVolunteerId(), "活动评价通知", content, "system_msg");
         }
     }
+
+    @Override
+    public long countPendingForOrganizer(Integer organizerId) {
+        // Find all activities by this organizer
+        List<Activity> activities = activityMapper.selectList(
+            new LambdaQueryWrapper<Activity>().eq(Activity::getOrganizerId, organizerId)
+        );
+        
+        if (activities.isEmpty()) {
+            return 0;
+        }
+        
+        List<Integer> activityIds = activities.stream().map(Activity::getActivityId).collect(Collectors.toList());
+        
+        if (activityIds.isEmpty()) {
+            return 0;
+        }
+
+        return this.count(new LambdaQueryWrapper<Registration>()
+            .in(Registration::getActivityId, activityIds)
+            .eq(Registration::getRegStatus, 0)
+        );
+    }
 }

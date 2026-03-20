@@ -35,6 +35,9 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
     private com.volunteer.mapper.UserMapper userMapper;
 
     @Autowired
+    private com.volunteer.service.RegistrationService registrationService;
+    
+    @Autowired
     private NotificationService notificationService;
 
     private static final String ACTIVITY_QUOTA_PREFIX = "activity:quota:";
@@ -204,6 +207,29 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         
         queryWrapper.orderByDesc(Activity::getCreatedAt);
         return this.page(page, queryWrapper);
+    }
+    
+    @Override
+    public java.util.Map<String, Object> getOrganizerStats(Integer organizerId) {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 1. 招募中的活动 (Status 1)
+        long recruitingCount = this.count(new LambdaQueryWrapper<Activity>()
+            .eq(Activity::getOrganizerId, organizerId)
+            .eq(Activity::getStatus, 1));
+            
+        // 2. 待审核的报名申请 (Registration Status 0 for activities owned by this organizer)
+        long pendingCount = registrationService.countPendingForOrganizer(organizerId);
+        
+        // 3. 总发布的活动 (所有状态)
+        long totalCount = this.count(new LambdaQueryWrapper<Activity>()
+            .eq(Activity::getOrganizerId, organizerId));
+
+        stats.put("recruiting", recruitingCount);
+        stats.put("pending", pendingCount);
+        stats.put("total", totalCount);
+        
+        return stats;
     }
 
     @Override
