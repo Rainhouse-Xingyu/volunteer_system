@@ -143,9 +143,10 @@ const toLogin = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-image: url('@/assets/login-bg.jpg'); /* Ensure this assumes similar structure to Login.vue */
-  background-size: cover;
-  background-position: center;
+  background-color: #f0f2f5; /* Use solid color instead of missing image */
+  /* background-image: url('@/assets/login-bg.jpg'); */
+  /* background-size: cover; */
+  /* background-position: center; */
 }
 
 .login-bg {
