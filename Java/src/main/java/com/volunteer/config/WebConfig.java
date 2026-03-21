@@ -43,6 +43,7 @@ public class WebConfig implements WebMvcConfigurer {
     private static final List<String> WHITELIST = Arrays.asList(
             "/auth/login",
             "/auth/register",
+            "/auth/reset-password",
             "/doc.html",
             "/webjars/**",
             "/swagger-resources/**",

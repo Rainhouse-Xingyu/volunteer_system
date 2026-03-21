@@ -14,6 +14,11 @@ const routes = [
     component: () => import('@/views/register/Register.vue')
   },
   {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('@/views/login/ForgotPassword.vue')
+  },
+  {
     path: '/',
     component: () => import('@/views/layout/Layout.vue'),
     redirect: '/dashboard',
@@ -103,10 +108,22 @@ const routes = [
         meta: { requiresAuth: true, title: '我的活动' }
       },
       {
+        path: 'points',
+        name: 'MyPoints',
+        component: () => import('@/views/user/Points.vue'),
+        meta: { requiresAuth: true, title: '积分明细' }
+      },
+      {
         path: 'stories',
-        name: 'Stories',
+        name: 'StoryList',
         component: () => import('@/views/story/StoryList.vue'),
         meta: { requiresAuth: true, title: '志愿故事' }
+      },
+      {
+        path: 'story/:id',
+        name: 'StoryDetail',
+        component: () => import('@/views/story/StoryDetail.vue'),
+        meta: { requiresAuth: true, title: '故事详情' }
       },
       {
         path: 'news/publish',
@@ -115,10 +132,22 @@ const routes = [
         meta: { requiresAuth: true, title: '发布资讯', role: 'ORGANIZER' }
       },
       {
+        path: 'admin/user-manage',
+        name: 'UserManage',
+        component: () => import('@/views/admin/UserManage.vue'),
+        meta: { requiresAuth: true, title: '用户管理', role: 'ADMIN' }
+      },
+      {
         path: 'admin/audit',
         name: 'AdminActivityAudit',
         component: () => import('@/views/admin/ActivityAudit.vue'),
         meta: { requiresAuth: true, title: '活动审核', role: 'ADMIN' }
+      },
+      {
+        path: 'admin/violation',
+        name: 'AdminViolation',
+        component: () => import('@/views/admin/Violation.vue'),
+        meta: { requiresAuth: true, title: '违规处理', role: 'ADMIN' }
       }
     ]
   }

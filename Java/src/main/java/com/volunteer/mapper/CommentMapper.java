@@ -29,6 +29,17 @@ public interface CommentMapper extends BaseMapper<Comment> {
     List<CommentVO> selectCommentsByActivityId(@Param("targetId") Integer targetId);
 
     /**
+     * 查询资讯的所有评论
+     */
+    @Select("SELECT c.id as comment_id, c.user_id, c.target_id as news_id, c.content, c.created_at, " +
+            "u.username, u.nickname as nickname, u.avatar_url as avatar " +
+            "FROM comments c " +
+            "LEFT JOIN users u ON c.user_id = u.user_id " +
+            "WHERE c.target_id = #{newsId} AND c.target_type = 'story' " +
+            "ORDER BY c.created_at DESC")
+    List<CommentVO> selectCommentsByNewsId(@Param("newsId") Integer newsId);
+
+    /**
      * 查询某用户的评论历史，关联活动表
      * @param userId 用户ID
      * @return 评论VO列表

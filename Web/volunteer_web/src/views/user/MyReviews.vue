@@ -29,12 +29,6 @@
     </div>
   </div>
 </template>
-                <div class="review-content">{{ item.content }}</div>
-            </div>
-        </div>
-    </van-list>
-  </div>
-</template>
 
 <script setup>
 import { ref } from 'vue'
@@ -67,88 +61,4 @@ const onLoad = async () => {
 const formatTime = (t) => dayjs(t).format('YYYY-MM-DD HH:mm')
 </script>
 
-<style scoped>
-.my-reviews-container {
-    padding: 20px;
-    max-width: 1000px;
-    margin: 0 auto;
-}
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-}
-.page-header h2 {
-    margin: 0;
-    font-size: 24px;
-    color: #333;
-}
-.reviews-content {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.review-list {
-    display: flex;
-    flex-direction: column;
-}
-.review-card {
-    padding: 20px;
-    border-bottom: 1px solid #eee;
-    transition: background 0.2s;
-}
-.review-card:last-child {
-    border-bottom: none;
-}
-.review-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    font-size: 14px;
-    color: #999;
-}
-.activity-title {
-    color: #667eea;
-    cursor: pointer;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-}
-.activity-title:hover {
-    text-decoration: underline;
-}
-.review-time {
-    color: #aaa;
-}
-.review-body {
-    color: #333;
-    line-height: 1.6;
-    font-size: 15px;
-}
-</style>
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-.activity-title {
-    font-weight: bold;
-    color: #333;
-    display: flex;
-    align-items: center;
-}
-.review-time {
-    color: #999;
-    font-size: 12px;
-}
-.review-content {
-    font-size: 14px;
-    color: #666;
-    line-height: 1.5;
-}
-</style>
+<style scoped src="@/styles/user-my-reviews.css"></style>

@@ -71,4 +71,14 @@ public class User implements Serializable {
      * 信用评分
      */
     private Integer creditScore;
+
+    /**
+     * 荣誉等级称号
+     */
+    private String level;
+
+    /**
+     * 个人简介/座右铭
+     */
+    private String bio;
 }

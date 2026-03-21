@@ -84,10 +84,11 @@ export function checkIn(data) {
 }
 
 // Volunteer: Mark as complete
-export function completeActivity(regId) {
+export function completeActivity(regId, data) {
     return request({
         url: `/volunteer/complete/${regId}`,
-        method: 'post'
+        method: 'post',
+        data
     })
 }
 

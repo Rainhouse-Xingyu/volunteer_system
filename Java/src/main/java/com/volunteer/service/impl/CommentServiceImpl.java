@@ -81,6 +81,30 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     }
 
     @Override
+    public void postNewsComment(Integer userId, Integer newsId, String content) {
+        // Step 1: Check if user already commented? (Optional, maybe allow multiple comments on news)
+        // For simplicity allow multiple.
+
+        // Step 2: Save comment
+        Comment comment = new Comment();
+        comment.setUserId(userId);
+        comment.setTargetId(newsId);
+        comment.setTargetType("story");
+        comment.setContent(content);
+        // comment.setCreatedAt handled by DB default or set here
+        comment.setCreatedAt(java.time.LocalDateTime.now());
+        
+        this.save(comment);
+
+        // Step 3: Maybe update News.commentsCount if needed (Entity News doesn't have it apparently)
+    }
+
+    @Override
+    public List<CommentVO> getCommentsByNewsId(Integer newsId) {
+        return baseMapper.selectCommentsByNewsId(newsId);
+    }
+
+    @Override
     public List<CommentVO> getMyComments(Integer userId) {
         return baseMapper.selectCommentsByUserId(userId);
     }

@@ -27,6 +27,7 @@ public class RegistrationDTO implements Serializable {
     private String location;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private Integer rewardPoints; // 积分奖励
 
     // 招募人数
     private Integer quota;

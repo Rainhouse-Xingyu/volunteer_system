@@ -61,18 +61,50 @@
       </el-col>
     </el-row>
 
-    <!-- Empty State for Charts since backend doesn't support them yet -->
-    <div class="chart-section">
-        <el-empty description="图表数据分析功能升级中..." :image-size="200"></el-empty>
-    </div>
+    <!-- Charts Section -->
+    <el-row :gutter="24" class="chart-row">
+      <el-col :span="12" :xs="24">
+         <el-card shadow="hover" class="chart-card">
+            <template #header>
+                <div class="card-header">
+                    <span>活动参与度 (Top 10)</span>
+                </div>
+            </template>
+            <div ref="activityChartRef" style="height: 300px; width: 100%;"></div>
+         </el-card>
+      </el-col>
+      <el-col :span="12" :xs="24">
+         <el-card shadow="hover" class="chart-card">
+            <template #header>
+                <div class="card-header">
+                    <span>志愿者信誉积分分布</span>
+                </div>
+            </template>
+            <div ref="pointsChartRef" style="height: 300px; width: 100%;"></div>
+         </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="24" class="chart-row" style="margin-top: 20px;">
+       <el-col :span="24">
+          <el-card shadow="hover" class="chart-card">
+             <template #header>
+                <div class="card-header">
+                    <span>近6个月志愿服务时长趋势</span>
+                </div>
+             </template>
+             <div ref="hoursChartRef" style="height: 350px; width: 100%;"></div>
+          </el-card>
+       </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getOverview } from '@/api/statistics'
+import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { getOverview, getChartsData } from '@/api/statistics'
 import { UserFilled, List, VideoPlay, Timer } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 
 const stats = ref({
     totalUsers: 0,
@@ -83,22 +115,138 @@ const stats = ref({
 
 const loading = ref(false)
 
+// Chart Refs
+const activityChartRef = ref(null)
+const pointsChartRef = ref(null)
+const hoursChartRef = ref(null)
+
+let activityChart = null
+let pointsChart = null
+let hoursChart = null
+
 const fetchData = async () => {
     loading.value = true
     try {
-        const res = await getOverview()
-        if (res.code === 200) {
-            stats.value = res.data
-        } else {
-            console.error('Fetch stats failed:', res.message)
+        const [overviewRes, chartsRes] = await Promise.all([
+            getOverview(),
+            getChartsData()
+        ])
+        
+        if (overviewRes.code === 200) {
+            stats.value = overviewRes.data
+        }
+        
+        if (chartsRes.code === 200) {
+            initCharts(chartsRes.data)
         }
     } catch (error) {
         console.error('Fetch stats error:', error)
-        // ElMessage.error('无法连接服务器')
     } finally {
         loading.value = false
     }
 }
+
+const initCharts = (data) => {
+    nextTick(() => {
+        // 1. Activity Chart
+        if (activityChartRef.value) {
+            if (activityChart) activityChart.dispose()
+            activityChart = echarts.init(activityChartRef.value)
+            const actData = data.activityParticipation || []
+            activityChart.setOption({
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { 
+                    type: 'category', 
+                    data: actData.map(i => i.name),
+                    axisLabel: { interval: 0, rotate: 30, width: 100, overflow: 'truncate' }
+                },
+                yAxis: { type: 'value' },
+                series: [{
+                    name: '参与人数',
+                    type: 'bar',
+                    data: actData.map(i => i.value),
+                    itemStyle: { color: '#409EFF' },
+                    barMaxWidth: 50
+                }]
+            })
+        }
+
+        // 2. Points Chart
+        if (pointsChartRef.value) {
+            if (pointsChart) pointsChart.dispose()
+            pointsChart = echarts.init(pointsChartRef.value)
+            const pointsData = data.pointsDistribution || []
+            pointsChart.setOption({
+                tooltip: { trigger: 'item' },
+                legend: { orient: 'vertical', left: 'left' },
+                series: [{
+                    name: '积分分布',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: { show: false, position: 'center' },
+                    emphasis: {
+                        label: { show: true, fontSize: 20, fontWeight: 'bold' }
+                    },
+                    data: pointsData
+                }]
+            })
+        }
+
+        // 3. Hours Chart
+        if (hoursChartRef.value) {
+            if (hoursChart) hoursChart.dispose()
+            hoursChart = echarts.init(hoursChartRef.value)
+            const hoursData = data.serviceHours || []
+            hoursChart.setOption({
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: hoursData.map(i => i.name) },
+                yAxis: { type: 'value', name: '小时' },
+                series: [{
+                    name: '服务时长',
+                    data: hoursData.map(i => i.value),
+                    type: 'line',
+                    smooth: true,
+                    areaStyle: {
+                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                          { offset: 0, color: 'rgba(64,158,255,0.5)' },
+                          { offset: 1, color: 'rgba(64,158,255,0.1)' }
+                        ])
+                    },
+                    itemStyle: { color: '#409EFF' }
+                }]
+            })
+        }
+    })
+}
+
+// Window resize handler
+const handleResize = () => {
+    activityChart && activityChart.resize()
+    pointsChart && pointsChart.resize()
+    hoursChart && hoursChart.resize()
+}
+
+onMounted(() => {
+    fetchData()
+    window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+    activityChart && activityChart.dispose()
+    pointsChart && pointsChart.dispose()
+    hoursChart && hoursChart.dispose()
+})
+
+
 
 onMounted(() => {
     fetchData()

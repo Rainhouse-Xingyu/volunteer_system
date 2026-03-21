@@ -29,20 +29,47 @@ export function auditActivity(data) {
   })
 }
 
-// 获取用户列表
-export function getUserList(current, size, role) {
+// 获取所有用户
+export function getUserList(params) {
   return request({
     url: '/admin/users',
     method: 'get',
-    params: { current, size, role }
+    params
   })
 }
 
-// 更改用户状态
-export function updateUserStatus(data) {
+// 更新用户状态
+export function updateUserStatus(userId, status) {
   return request({
     url: '/admin/user/status',
     method: 'put',
-    data
+    data: { userId, status }
+  })
+}
+
+// 获取用户信息修改审核列表
+export function getUserAuditList(params) {
+  return request({
+    url: '/admin/audit/list',
+    method: 'get',
+    params
+  })
+}
+
+// 审核用户信息修改
+export function auditUserUpdate(id, status, reason) {
+  return request({
+    url: `/admin/audit/${id}`,
+    method: 'post',
+    data: { status, reason }
+  })
+}
+
+// 导出活动报表
+export function exportActivityReport(activityId) {
+  return request({
+    url: `/admin/export/${activityId}`,
+    method: 'get',
+    responseType: 'blob'
   })
 }

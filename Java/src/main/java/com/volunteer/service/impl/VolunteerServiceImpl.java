@@ -11,6 +11,7 @@ import com.volunteer.mapper.UserMapper;
 import com.volunteer.service.VolunteerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,6 +27,8 @@ import java.time.LocalDateTime;
 /**
  * 志愿者服务实现类
  */
+import com.volunteer.service.UserUpdateService;
+
 @Service
 public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, VolunteerProfile> implements VolunteerService {
 
@@ -40,6 +43,10 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
 
     @Autowired
     private UserMapper userMapper;
+    
+    @Autowired
+    @Lazy
+    private UserUpdateService userUpdateService;
 
     // 手机号正则校验
     private static final String PHONE_REGEX = "^1[3-9]\\d{9}$";
@@ -56,19 +63,6 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
         // 安全处理：防止用户通过接口修改积分和信用评分
         volunteerProfile.setVolunteerPoints(null);
         volunteerProfile.setCreditScore(null);
-        
-        // 更新 User 表中的基本信息 (昵称、头像)
-        if (StringUtils.hasText(volunteerProfile.getNickname()) || StringUtils.hasText(volunteerProfile.getAvatarUrl())) {
-            User user = new User();
-            user.setUserId(userId);
-            if (StringUtils.hasText(volunteerProfile.getNickname())) {
-                user.setNickname(volunteerProfile.getNickname());
-            }
-            if (StringUtils.hasText(volunteerProfile.getAvatarUrl())) {
-                user.setAvatarUrl(volunteerProfile.getAvatarUrl());
-            }
-            userMapper.updateById(user);
-        }
 
         // 2. 校验手机号格式
         if (StringUtils.hasText(volunteerProfile.getPhone())) {
@@ -93,19 +87,21 @@ public class VolunteerServiceImpl extends ServiceImpl<VolunteerProfileMapper, Vo
             throw new ServiceException("学号不能为空");
         }
 
-        // 4. 保存或更新到数据库
-        // 由于 VolunteerProfile 的主键是 userId (INPUT 类型)，我们需要检查是否存在
-        // 实际上 MyBatis-Plus saveOrUpdate 会根据 @TableId 注解判断，
-        // 这里 ID 是 userId，如果 userId 对应的记录存在则更新，否则插入
-        boolean result = this.saveOrUpdate(volunteerProfile);
+        // 4. 提交修改审核
+        VolunteerProfile original = this.getById(userId);
+        if (original == null) {
+            original = new VolunteerProfile();
+            original.setUserId(userId);
+        }
         
-        if (!result) {
-            throw new ServiceException("更新资料失败");
+        // 补充 User 信息到 original 以便对比
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            original.setNickname(user.getNickname());
+            original.setAvatarUrl(user.getAvatarUrl());
         }
 
-        // 5. 删除 Redis 缓存 (保证数据一致性)
-        String redisKey = USER_PROFILE_KEY_PREFIX + userId;
-        redisTemplate.delete(redisKey);
+        userUpdateService.submitUpdate(userId, "volunteer_profile", original, volunteerProfile);
     }
 
     @Override

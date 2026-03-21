@@ -325,18 +325,23 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
         return dto;
     }
 
+
     @Override
     public List<RegistrationDTO> getActivityRegistrations(Integer activityId) {
         // 1. 查询该活动的所有报名记录
         LambdaQueryWrapper<Registration> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Registration::getActivityId, activityId)
-                   .orderByDesc(Registration::getCreateTime);
-                   
-        List<Registration> list = registrationMapper.selectList(queryWrapper);
-        if (list.isEmpty()) {
+                .ne(Registration::getRegStatus, 3) // 排除已取消
+                .orderByDesc(Registration::getCreateTime);
+
+        List<Registration> list = baseMapper.selectList(queryWrapper);
+        if (list == null || list.isEmpty()) {
             return new ArrayList<>();
         }
-        
+
+        // 预先查询活动信息，避免循环查询
+        Activity activity = activityMapper.selectById(activityId);
+
         // 2. 补全信息 (与分页查询逻辑一致)
         return list.stream().map(reg -> {
             RegistrationDTO dto = new RegistrationDTO();
@@ -355,13 +360,17 @@ public class RegistrationServiceImpl extends ServiceImpl<RegistrationMapper, Reg
                 com.volunteer.entity.User user = userMapper.selectById(reg.getVolunteerId());
                 if (user != null) {
                     dto.setVolunteerName(user.getUsername());
+                } else {
+                    dto.setVolunteerName("未知用户");
                 }
             }
             
-            // 补全活动标题
-            Activity act = activityMapper.selectById(reg.getActivityId());
-            if(act != null) {
-                dto.setActivityTitle(act.getTitle());
+            // 补全活动信息
+            if (activity != null) {
+                dto.setActivityTitle(activity.getTitle());
+                dto.setStartTime(activity.getStartTime());
+                dto.setEndTime(activity.getEndTime());
+                dto.setRewardPoints(activity.getRewardPoints());
             }
 
             return dto;

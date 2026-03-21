@@ -37,7 +37,14 @@ public class CommentController {
         Claims claims = jwtUtils.parseToken(token);
         Integer userId = claims.get("userId", Integer.class);
         
-        commentService.postComment(userId, commentVO.getActivityId(), commentVO.getContent());
+        if (commentVO.getNewsId() != null) {
+            commentService.postNewsComment(userId, commentVO.getNewsId(), commentVO.getContent());
+        } else if (commentVO.getActivityId() != null) {
+            commentService.postComment(userId, commentVO.getActivityId(), commentVO.getContent());
+        } else {
+            return Result.error("参数错误：未指定评论对象");
+        }
+        
         return Result.success("评价成功");
     }
 
@@ -47,6 +54,15 @@ public class CommentController {
     @GetMapping("/activity/{activityId}")
     public Result<List<CommentVO>> getActivityComments(@PathVariable Integer activityId) {
         List<CommentVO> list = commentService.getCommentsByActivityId(activityId);
+        return Result.success(list);
+    }
+
+    /**
+     * 查询资讯/故事的所有评价
+     */
+    @GetMapping("/news/{newsId}")
+    public Result<List<CommentVO>> getNewsComments(@PathVariable Integer newsId) {
+        List<CommentVO> list = commentService.getCommentsByNewsId(newsId);
         return Result.success(list);
     }
 

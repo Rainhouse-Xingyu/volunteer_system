@@ -1,0 +1,185 @@
+.activity-detail-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.detail-card {
+  overflow: hidden;
+}
+
+.image-box {
+  position: relative;
+  height: 350px;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.main-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.status-tag {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.info-box {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-left: 20px;
+}
+
+.activity-title {
+  margin: 0 0 15px 0;
+  font-size: 28px;
+  color: #303133;
+}
+
+.organizer-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.organizer-name {
+  margin-left: 10px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.meta-list {
+  flex: 1;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 16px;
+  color: #606266;
+}
+
+.meta-item .el-icon {
+  margin-right: 10px;
+  font-size: 20px;
+  color: #909399;
+}
+
+.meta-item .label {
+  width: 80px;
+  color: #909399;
+}
+
+.meta-item .value {
+  font-weight: 500;
+  color: #303133;
+}
+
+.highlight-orange {
+  color: #ff9800 !important;
+  font-weight: bold;
+}
+
+.action-buttons {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #ebeef5;
+}
+
+.join-btn {
+  width: 70%;
+}
+
+.rich-text {
+  line-height: 1.8;
+  color: #303133;
+  font-size: 15px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comment-item {
+  margin-bottom: 10px;
+}
+
+.comment-user-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.comment-username {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 8px;
+  color: #303133;
+}
+
+.comment-date {
+  font-size: 12px;
+  color: #909399;
+  margin-left: auto;
+}
+
+.comment-content {
+  font-size: 14px;
+  color: #606266;
+  padding-left: 32px;
+}
+
+.qrcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+}
+
+.qr-tip {
+  margin: 10px 0;
+  font-size: 12px;
+  color: #909399;
+}
+
+@media screen and (max-width: 768px) {
+  .detail-card {
+     /* padding is usually on card body, handled by el-card props */
+  }
+  .image-box {
+    height: 200px;
+  }
+  .info-box {
+    padding-left: 0;
+    margin-top: 20px;
+    height: auto;
+  }
+  .activity-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+  .meta-item {
+    font-size: 14px;
+    margin-bottom: 15px;
+  }
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    margin-top: 20px;
+  }
+  .action-buttons .el-button {
+    width: 100%;
+    margin-left: 0 !important; /* Override element-plus margin-left */
+    margin-bottom: 10px;
+  }
+}

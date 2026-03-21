@@ -50,3 +50,20 @@ export function getVolunteerStats() {
         method: 'get'
     })
 }
+
+// 获取积分明细
+export function getPointsHistory(current, size) {
+    return request({
+        url: '/volunteer/points/history',
+        method: 'get',
+        params: { current, size }
+    })
+}
+
+// 获取积分排名
+export function getPointsRank() {
+    return request({
+        url: '/volunteer/points/rank',
+        method: 'get'
+    })
+}

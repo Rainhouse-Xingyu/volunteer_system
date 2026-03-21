@@ -28,4 +28,13 @@ public class StatisticsController {
     public Result<Map<String, Object>> getOverview() {
         return Result.success(statisticsService.getOverview());
     }
+
+    /**
+     * 获取图表分析数据
+     */
+    @RequireRole("admin")
+    @GetMapping("/charts")
+    public Result<Map<String, Object>> getChartsData() {
+        return Result.success(statisticsService.getChartsData());
+    }
 }

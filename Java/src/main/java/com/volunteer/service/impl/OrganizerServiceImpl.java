@@ -1,5 +1,6 @@
 package com.volunteer.service.impl;
 
+import com.volunteer.service.UserUpdateService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.volunteer.entity.OrganizerProfile;
 import com.volunteer.entity.User;
@@ -7,6 +8,7 @@ import com.volunteer.mapper.OrganizerProfileMapper;
 import com.volunteer.mapper.UserMapper;
 import com.volunteer.service.OrganizerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -16,6 +18,10 @@ public class OrganizerServiceImpl extends ServiceImpl<OrganizerProfileMapper, Or
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    @Lazy
+    private UserUpdateService userUpdateService;
 
     @Override
     public OrganizerProfile getProfile(Integer userId) {
@@ -41,27 +47,19 @@ public class OrganizerServiceImpl extends ServiceImpl<OrganizerProfileMapper, Or
         // 确保 ID 一致
         profile.setUserId(userId);
         
-        // 1. 更新 User 表 (昵称、头像)
-        if (StringUtils.hasText(profile.getNickname()) || StringUtils.hasText(profile.getAvatarUrl())) {
-            User user = new User();
-            user.setUserId(userId);
-            if (StringUtils.hasText(profile.getNickname())) {
-                user.setNickname(profile.getNickname());
-            }
-            if (StringUtils.hasText(profile.getAvatarUrl())) {
-                user.setAvatarUrl(profile.getAvatarUrl());
-            }
-            userMapper.updateById(user);
+        // 2. 提交审核
+        OrganizerProfile original = this.getById(userId);
+        if (original == null) {
+            original = new OrganizerProfile();
+            original.setUserId(userId);
         }
         
-        // 2. 更新 OrganizerProfile 表
-        OrganizerProfile exist = this.getById(userId);
-        if (exist == null) {
-            // 如果不存在则新增
-            this.save(profile);
-        } else {
-            // 存在则更新
-            this.updateById(profile);
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            original.setNickname(user.getNickname());
+            original.setAvatarUrl(user.getAvatarUrl());
         }
+        
+        userUpdateService.submitUpdate(userId, "organizer_profile", original, profile);
     }
 }

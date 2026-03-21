@@ -1,1 +1,0 @@
-ALTER TABLE registrations ADD COLUMN assessment VARCHAR(20) DEFAULT NULL COMMENT '评价';

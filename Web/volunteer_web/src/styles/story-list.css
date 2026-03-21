@@ -1,0 +1,150 @@
+.stories-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* .page-header {
+  margin-bottom: 30px;
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 20px;
+} */
+/* Ensure page-header styles are consistent if shared, but here it is scoped */
+.page-header {
+  margin-bottom: 30px;
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 20px;
+}
+
+.page-header h2 {
+  font-size: 28px;
+  color: #303133;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #909399;
+  font-size: 16px;
+}
+
+.story-card {
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.story-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.story-wrapper {
+  display: flex;
+  justify-content: space-between;
+}
+
+.story-content {
+  flex: 1;
+  padding-right: 20px;
+}
+
+.story-meta {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.story-title {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #303133;
+  line-height: 1.4;
+    font-weight: 600;
+}
+
+.story-excerpt {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.story-footer {
+  display: flex;
+  gap: 15px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.story-footer span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.story-cover {
+  width: 200px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.story-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-card .card-header {
+  font-weight: bold;
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cloud-tag {
+  cursor: pointer;
+}
+
+.recent-activities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recent-activities li {
+  padding: 10px 0;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+.recent-activities li:last-child {
+  border-bottom: none;
+}
+
+.recent-activities a {
+  color: #606266;
+  text-decoration: none;
+  transition: color 0.2s;
+    font-size: 14px;
+}
+
+.recent-activities a:hover {
+  color: #409EFF;
+}
+
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}

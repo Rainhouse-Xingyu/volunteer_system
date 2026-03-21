@@ -55,6 +55,15 @@ public class LoginController {
     }
 
     /**
+     * 重置密码
+     */
+    @PostMapping("/reset-password")
+    public Result<Void> resetPassword(@RequestBody @Validated com.volunteer.dto.ResetPasswordDTO resetPasswordDTO) {
+        loginService.resetPassword(resetPasswordDTO);
+        return Result.success("密码重置成功", null);
+    }
+
+    /**
      * 获取当前用户信息
      */
     @GetMapping("/info")

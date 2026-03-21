@@ -30,3 +30,10 @@ export function deleteNews(id) {
         method: 'post'
     })
 }
+
+export function getNewsDetail(id) {
+    return request({
+        url: `/news/detail/${id}`,
+        method: 'get'
+    })
+}

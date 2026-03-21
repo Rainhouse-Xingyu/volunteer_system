@@ -28,10 +28,18 @@ public interface LoginService {
     void logout(String token);
 
     /**
+     * 重置密码
+     * @param resetPasswordDTO 重置密码参数
+     */
+    void resetPassword(com.volunteer.dto.ResetPasswordDTO resetPasswordDTO);
+
+    /**
      * 修改密码
      * @param userId 用户 ID
      * @param oldPassword 旧密码
      * @param newPassword 新密码
      */
     void changePassword(Integer userId, String oldPassword, String newPassword);
+
 }
+

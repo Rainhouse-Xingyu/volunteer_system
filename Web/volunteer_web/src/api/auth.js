@@ -16,6 +16,14 @@ export function register(data) {
   })
 }
 
+export function resetPassword(data) {
+  return request({
+    url: '/auth/reset-password',
+    method: 'post',
+    data: data
+  })
+}
+
 export function getUserInfo() {
   return request({
     url: '/auth/info',

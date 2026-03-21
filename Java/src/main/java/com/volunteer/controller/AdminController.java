@@ -8,12 +8,21 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.web.bind.annotation.*;
 
 import com.volunteer.service.UserService;
+import com.volunteer.service.RegistrationService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.web.bind.annotation.*;
 import com.volunteer.entity.User;
+import com.volunteer.dto.RegistrationDTO;
+import com.volunteer.dto.RegistrationExportDTO;
+import com.alibaba.excel.EasyExcel;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 管理员控制器
@@ -28,6 +37,10 @@ public class AdminController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private RegistrationService registrationService;
+
+
     /**
      * 获取用户列表（带分页和角色筛选）
      * GET /admin/users?current=1&size=10&role=volunteer
@@ -36,9 +49,10 @@ public class AdminController {
     @GetMapping("/users")
     public Result<IPage<User>> getUserList(@RequestParam(defaultValue = "1") int current,
                                            @RequestParam(defaultValue = "10") int size,
-                                           @RequestParam(required = false) String role) {
+                                           @RequestParam(required = false) String role,
+                                           @RequestParam(required = false) String keyword) {
         Page<User> page = new Page<>(current, size);
-        return Result.success(userService.getUserList(page, role));
+        return Result.success(userService.getUserList(page, role, keyword));
     }
 
     /**
@@ -83,5 +97,46 @@ public class AdminController {
         // 业务逻辑交由 Service 处理（包括状态更新、Redis名额初始化等）
         activityService.auditActivity(activityId, result);
         return Result.success();
+    }
+
+    /**
+     * 导出活动报名/签到报表
+     */
+    @RequireRole("admin")
+    @GetMapping("/export/{activityId}")
+    public void exportActivityReport(@PathVariable Integer activityId, HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        // 这里URLEncoder.encode可以防止中文乱码 当然和easyexcel没有关系
+        String fileName = URLEncoder.encode("报表" + activityId, "UTF-8").replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        List<RegistrationDTO> list = registrationService.getActivityRegistrations(activityId);
+        List<RegistrationExportDTO> exportList = list.stream().map(dto -> {
+            RegistrationExportDTO export = new RegistrationExportDTO();
+            // 姓名
+            export.setName(dto.getVolunteerName() != null ? dto.getVolunteerName() : "未知");
+            
+            // 签到状态
+            export.setCheckInStatus(dto.getCheckinStatus() != null && dto.getCheckinStatus() == 1 ? "已签到" : "未签到");
+            
+            // 时长
+            double duration = 0.0;
+            if (dto.getStartTime() != null && dto.getEndTime() != null) {
+                java.time.Duration d = java.time.Duration.between(dto.getStartTime(), dto.getEndTime());
+                duration = d.toMinutes() / 60.0;
+                // 保留一位小数
+                duration = Math.round(duration * 10.0) / 10.0;
+            }
+            export.setDuration(duration);
+            
+            // 积分
+            export.setPoints(dto.getRewardPoints() != null ? dto.getRewardPoints() : 0);
+            return export;
+        }).collect(Collectors.toList());
+
+        EasyExcel.write(response.getOutputStream(), RegistrationExportDTO.class)
+                .sheet("签到报表")
+                .doWrite(exportList);
     }
 }

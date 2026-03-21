@@ -47,6 +47,11 @@ public class Activity implements Serializable {
     private String content;
 
     /**
+     * 活动分类
+     */
+    private String category;
+
+    /**
      * 开始时间
      */
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)		

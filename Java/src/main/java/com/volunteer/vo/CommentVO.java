@@ -16,6 +16,10 @@ public class CommentVO {
     private Integer userId;
     
     private Integer activityId;
+
+    private Integer newsId;
+
+    private String targetType; // 'activity' or 'news'
     
     private String content;
     

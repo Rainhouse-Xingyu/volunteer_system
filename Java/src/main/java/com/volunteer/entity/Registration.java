@@ -58,6 +58,11 @@ public class Registration implements Serializable {
     private Integer isCompleted;
 
     /**
+     * 完结证明照片(JSON/逗号分隔)
+     */
+    private String proofPhotos;
+
+    /**
      * 评价: 优秀, 良好, 不合格
      */
     private String assessment;

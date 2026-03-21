@@ -106,6 +106,7 @@
                     <el-avatar :size="24" :src="c.avatar || defaultAvatar" />
                     <span class="comment-username">{{ c.username || '匿名用户' }}</span>
                     <span class="comment-date">{{ formatTime(c.createdAt) }}</span>
+                    <el-button type="danger" link size="small" style="margin-left: auto;" @click="handleReport(c.commentId)">举报</el-button>
                   </div>
                   <div class="comment-content">{{ c.content }}</div>
                   <el-divider style="margin: 10px 0;" />
@@ -148,6 +149,26 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="showReportDialog" title="举报评论" width="400px">
+      <el-form :model="reportForm" label-position="top">
+        <el-form-item label="举报原因">
+          <el-select v-model="reportForm.reason" placeholder="请选择原因" style="width: 100%">
+             <el-option label="垃圾广告" value="垃圾广告"></el-option>
+             <el-option label="辱骂攻击" value="辱骂攻击"></el-option>
+             <el-option label="虚假信息" value="虚假信息"></el-option>
+             <el-option label="其它" value="其它"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="详细说明">
+             <el-input v-model="reportForm.detail" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showReportDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitReport">提交</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -155,6 +176,7 @@
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getActivityDetail, registerActivity, auditActivity } from '@/api/activity'
+import { getActivityComments, postComment, reportComment } from '@/api/comment'
 import { useUserStore } from '@/store/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Timer, Location, User, Money, Check, Close, Warning } from '@element-plus/icons-vue'
@@ -214,7 +236,9 @@ const formatContent = (content) => {
 const calculateProgress = (current, quota) => {
     if(!quota) return 0
     const p = (current / quota) * 100
-    return p > 100 ? 100 : p
+    // 保留1位小数
+    const val = p > 100 ? 100 : p
+    return Math.round(val * 10) / 10
 }
 
 const calculateProgressStatus = (current, quota) => {
@@ -234,7 +258,10 @@ const fetchData = async () => {
             activity.value = res.data
         }
         // Fetch comments
-        // const commentRes = await getActivityComments(id) ... if available
+        const commentRes = await getActivityComments(id)
+        if(commentRes.code === 200) {
+            comments.value = commentRes.data
+        }
     } catch(e) {
         console.error(e)
         ElMessage.error('加载失败')
@@ -299,21 +326,63 @@ const handleRefreshCode = () => {
     generateQRCode()
 }
 
+// Report Logic
+const showReportDialog = ref(false)
+const reportForm = ref({
+    commentId: null,
+    reason: '',
+    detail: ''
+})
+
+const handleReport = (commentId) => {
+    reportForm.value = { commentId, reason: '', detail: '' }
+    showReportDialog.value = true
+}
+
+const submitReport = async () => {
+    if(!reportForm.value.reason) {
+        ElMessage.warning('请选择举报原因')
+        return
+    }
+    try {
+        const res = await reportComment(reportForm.value)
+        if(res.code === 200) {
+            ElMessage.success('举报已提交')
+            showReportDialog.value = false
+        } else {
+             ElMessage.error(res.message || '举报失败')
+        }
+    } catch(e) {
+        ElMessage.error('举报异常')
+    }
+}
+
 const handleSubmitComment = async () => {
     if(!commentContent.value) {
         ElMessage.warning('请输入评价内容')
         return
     }
-    // API call logic ...
-    ElMessage.success('评价已提交')
-    showCommentDialog.value = false
-    comments.value.unshift({
-        commentId: Date.now(),
-        username: userStore.userInfo?.username || '我',
-        content: commentContent.value,
-        createdAt: new Date()
-    })
-    commentContent.value = ''
+    try {
+        const res = await postComment({
+            activityId: activity.value.activityId,
+            content: commentContent.value
+        })
+        
+        if(res.code === 200) {
+            ElMessage.success('评价已提交')
+            showCommentDialog.value = false
+            commentContent.value = ''
+            // Reload comments
+            const commentRes = await getActivityComments(activity.value.activityId)
+            if(commentRes.code === 200) {
+                comments.value = commentRes.data
+            }
+        } else {
+            ElMessage.error(res.message || '评价失败')
+        }
+    } catch(e) {
+        ElMessage.error(e.response?.data?.message || '评价失败，请稍后重试')
+    }
 }
 
 onMounted(() => {
@@ -321,190 +390,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.activity-detail-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-bottom: 40px;
-}
-
-.detail-card {
-  overflow: hidden;
-}
-
-.image-box {
-  position: relative;
-  height: 350px;
-  width: 100%;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.main-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.status-tag {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  font-size: 14px;
-  padding: 6px 12px;
-}
-
-.info-box {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding-left: 20px;
-}
-
-.activity-title {
-  margin: 0 0 15px 0;
-  font-size: 28px;
-  color: #303133;
-}
-
-.organizer-info {
-  display: flex;
-  align-items: center;
-  margin-bottom: 30px;
-}
-
-.organizer-name {
-  margin-left: 10px;
-  color: #606266;
-  font-weight: 500;
-}
-
-.meta-list {
-  flex: 1;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  font-size: 16px;
-  color: #606266;
-}
-
-.meta-item .el-icon {
-  margin-right: 10px;
-  font-size: 20px;
-  color: #909399;
-}
-
-.meta-item .label {
-  width: 80px;
-  color: #909399;
-}
-
-.meta-item .value {
-  font-weight: 500;
-  color: #303133;
-}
-
-.highlight-orange {
-  color: #ff9800 !important;
-  font-weight: bold;
-}
-
-.action-buttons {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #ebeef5;
-}
-
-.join-btn {
-  width: 70%;
-}
-
-.rich-text {
-  line-height: 1.8;
-  color: #303133;
-  font-size: 15px;
-}
-
-.comment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.comment-item {
-  margin-bottom: 10px;
-}
-
-.comment-user-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.comment-username {
-  font-size: 14px;
-  font-weight: 600;
-  margin-left: 8px;
-  color: #303133;
-}
-
-.comment-date {
-  font-size: 12px;
-  color: #909399;
-  margin-left: auto;
-}
-
-.comment-content {
-  font-size: 14px;
-  color: #606266;
-  padding-left: 32px;
-}
-
-.qrcode-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-}
-
-.qr-tip {
-  margin: 10px 0;
-  font-size: 12px;
-  color: #909399;
-}
-
-@media screen and (max-width: 768px) {
-  .detail-card {
-     /* padding is usually on card body, handled by el-card props */
-  }
-  .image-box {
-    height: 200px;
-  }
-  .info-box {
-    padding-left: 0;
-    margin-top: 20px;
-    height: auto;
-  }
-  .activity-title {
-    font-size: 24px;
-    margin-bottom: 10px;
-  }
-  .meta-item {
-    font-size: 14px;
-    margin-bottom: 15px;
-  }
-  .action-buttons {
-    display: flex;
-    flex-direction: column;
-    margin-top: 20px;
-  }
-  .action-buttons .el-button {
-    width: 100%;
-    margin-left: 0 !important; /* Override element-plus margin-left */
-    margin-bottom: 10px;
-  }
-}
-</style>
+<style scoped src="@/styles/activity-detail.css"></style>

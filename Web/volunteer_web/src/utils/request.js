@@ -3,7 +3,8 @@ import { showToast } from 'vant'
 import { useUserStore } from '@/store/user'
 
 const service = axios.create({
-  baseURL: '/api', // Use relative path for proxy
+  // 开发环境使用 /api 走代理，生产环境使用 / (后端直接提供服务)
+  baseURL: import.meta.env.PROD ? '/' : '/api',
   timeout: 10000 // 增加超时时间到10s
 })
 
@@ -25,6 +26,11 @@ service.interceptors.request.use(
 // Response interceptor
 service.interceptors.response.use(
   response => {
+    // Check for Blob response (file download)
+    if (response.config.responseType === 'blob') {
+        return response.data
+    }
+
     const res = response.data
     // Assuming backend returns code 200 for success
     if (res.code !== 200) {

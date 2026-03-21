@@ -11,7 +11,7 @@
         <el-card shadow="hover" class="info-card">
           <div class="card-header-row">
             <h3>个人信息</h3>
-            <el-button icon="Edit" plain @click="toEdit">编辑</el-button>
+            <el-button v-if="userStore.role !== 'ADMIN'" icon="Edit" plain @click="toEdit">编辑</el-button>
           </div>
           
           <el-form label-position="top" class="info-form">
@@ -70,6 +70,43 @@
           </div>
         </el-card>
 
+        <!-- Credit Score Card -->
+        <el-card shadow="hover" class="credit-card" v-if="userStore.role === 'VOLUNTEER'">
+           <div class="credit-header">
+              <h3>信誉评级</h3>
+              <el-tag :type="creditRating.type" effect="dark">{{ creditRating.text }}</el-tag>
+           </div>
+           <div class="credit-body">
+              <el-progress 
+                  type="circle" 
+                  :percentage="stats.creditScore || 0" 
+                  :color="creditRating.color"
+                  :width="120"
+                  :stroke-width="12"
+              >
+                  <template #default="{ percentage }">
+                      <div class="score-value">{{ percentage }}</div>
+                      <div class="score-label">信誉分</div>
+                  </template>
+              </el-progress>
+              
+              <div class="credit-legend">
+                  <div class="legend-item">
+                      <span class="dot" style="background: #67C23A;"></span>
+                      <span>90+ 优秀</span>
+                  </div>
+                  <div class="legend-item">
+                      <span class="dot" style="background: #409EFF;"></span>
+                      <span>80+ 良好</span>
+                  </div>
+                   <div class="legend-item">
+                      <span class="dot" style="background: #E6A23C;"></span>
+                      <span>60+ 一般</span>
+                  </div>
+              </div>
+           </div>
+        </el-card>
+
       </div>
     </div>
   </div>
@@ -89,6 +126,14 @@ const stats = ref({
     points: 0,
     creditScore: 100,
     volunteerHours: 0
+})
+
+const creditRating = computed(() => {
+    const score = stats.value.creditScore
+    if (score >= 90) return { text: '优秀', type: 'success', color: '#67C23A' }
+    if (score >= 80) return { text: '良好', type: 'primary', color: '#409EFF' }
+    if (score >= 60) return { text: '一般', type: 'warning', color: '#E6A23C' }
+    return { text: '需努力', type: 'danger', color: '#F56C6C' }
 })
 
 const userInfo = ref({
@@ -156,147 +201,4 @@ const toEdit = () => {
 }
 </script>
 
-<style scoped>
-.profile-page {
-  padding: 24px;
-}
-.page-header h2 {
-    font-size: 24px;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-.subtitle {
-  color: #606266;
-  font-size: 14px;
-  margin-top: 0;
-  margin-bottom: 24px;
-}
-
-.profile-layout {
-  display: flex;
-  gap: 24px;
-}
-
-.left-column {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-.right-column {
-  width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.info-card, .interests-card, .profile-card, .ranking-card {
-  border-radius: 12px;
-  border: none;
-}
-
-.card-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.card-header-row h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.info-form :deep(.el-input__wrapper) {
-  background-color: #f5f7fa;
-  box-shadow: none;
-}
-.info-form :deep(.el-textarea__inner) {
-  background-color: #f5f7fa;
-  box-shadow: none;
-}
-
-.interest-tag {
-  margin-right: 12px;
-  margin-bottom: 12px;
-  border-radius: 16px;
-  padding: 6px 16px;
-  font-size: 13px;
-  color: #606266;
-  background-color: #f4f4f5;
-  border-color: #e9e9eb;
-}
-
-.avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 24px 0;
-  border-bottom: 1px solid #f0f2f5;
-}
-.username {
-  font-size: 20px;
-  margin: 16px 0 4px;
-}
-.role-text {
-  color: #909399;
-  font-size: 14px;
-  margin-bottom: 12px;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 24px;
-}
-.stat-item {
-  text-align: center;
-}
-.stat-val {
-  font-size: 24px;
-  font-weight: bold;
-  color: #303133;
-}
-.stat-lbl {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
-}
-
-.ranking-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 24px 0;
-}
-.rank-icon-wrapper {
-  background: #fffbe6;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-.rank-number {
-  font-size: 32px;
-  font-weight: bold;
-  color: #303133;
-}
-.rank-desc {
-  color: #909399;
-  font-size: 14px;
-}
-
-.next-goal {
-  background: #f9f9f9;
-  padding: 16px;
-  border-radius: 8px;
-  text-align: center;
-}
-.next-goal p {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: #606266;
-}
-</style>
+<style scoped src="@/styles/user-me.css"></style>

@@ -35,13 +35,62 @@ public class VolunteerController {
     private NotificationService notificationService;
 
     @Autowired
-    private JwtUtils jwtUtils;
-
-    @Autowired
     private com.volunteer.service.UserService userService;
 
     @Autowired
     private com.volunteer.service.ActivityService activityService;
+
+    /**
+     * 获取积分明细（即已完成的志愿活动）
+     */
+    @GetMapping("/points/history")
+    public Result<IPage<RegistrationDTO>> getPointsHistory(@RequestParam(defaultValue = "1") int current,
+                                                           @RequestParam(defaultValue = "10") int size,
+                                                           HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        // status=2 means completed
+        return Result.success(registrationService.getMyRegistrations(current, size, currentUser.getUserId(), 2));
+    }
+
+    /**
+     * 获取积分排名信息
+     */
+    @GetMapping("/points/rank")
+    public Result<Map<String, Object>> getPointsRank(HttpServletRequest request) {
+        User currentUser = (User) request.getAttribute("currentUser");
+        if (currentUser == null) {
+            return Result.error(401, "请先登录");
+        }
+        
+        // Refresh current user data just in case
+        User user = userService.getById(currentUser.getUserId());
+        
+        // Count users with more points than me
+        long rank = userService.count(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
+                .eq(User::getRole, "volunteer")
+                .gt(User::getPoints, user.getPoints())) + 1;
+        
+        long totalVolunteers = userService.count(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
+                .eq(User::getRole, "volunteer"));
+                
+        // Get top 10 volunteers
+        IPage<User> topPage = userService.page(new Page<>(1, 10), 
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
+                .eq(User::getRole, "volunteer")
+                .orderByDesc(User::getPoints)
+                .select(User::getUserId, User::getNickname, User::getUsername, User::getAvatarUrl, User::getPoints, User::getLevel));
+
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put("myPoints", user.getPoints());
+        data.put("myRank", rank);
+        data.put("totalVolunteers", totalVolunteers);
+        data.put("topList", topPage.getRecords());
+        
+        return Result.success(data);
+    }
 
     /**
      * 获取志愿者仪表盘统计数据
@@ -167,10 +216,10 @@ public class VolunteerController {
     }
 
     /**
-     * 完成活动
+     * 完成活动 (提交完结证明)
      */
     @PostMapping("/complete/{regId}")
-    public Result<Void> completeActivity(@PathVariable Integer regId, HttpServletRequest request) {
+    public Result<Void> completeActivity(@PathVariable Integer regId, @RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
         User currentUser = (User) request.getAttribute("currentUser");
         if (currentUser == null) {
              return Result.error(401, "用户信息异常");
@@ -182,7 +231,26 @@ public class VolunteerController {
         if (!registration.getVolunteerId().equals(currentUser.getUserId())) {
             return Result.error(403, "无权操作");
         }
-        registration.setRegStatus(2); // 2: Completed
+        
+        // 校验照片
+        if (body != null && body.containsKey("photos")) {
+            List<String> photos = (List<String>) body.get("photos");
+            if (photos == null || photos.isEmpty()) {
+                return Result.error(400, "请至少上传1张照片");
+            }
+            if (photos.size() > 3) {
+                return Result.error(400, "照片最多上传3张");
+            }
+            registration.setProofPhotos(String.join(",", photos));
+        } else {
+             // 兼容旧逻辑或强制要求？根据需求：
+             // "当志愿者点击已完成时需要上传照片最低1张最多3张照片"
+             // 所以必须有 photos
+             return Result.error(400, "请上传活动照片（1-3张）");
+        }
+
+        registration.setRegStatus(2); // 2: Completed (Update status to completed directly for now, or use a pending status if required)
+        registration.setIsCompleted(1); // Mark as user confirmed completion
         registrationService.updateById(registration);
         return Result.success();
     }

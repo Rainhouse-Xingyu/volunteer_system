@@ -160,18 +160,4 @@ const resetForm = () => {
 }
 </script>
 
-<style scoped>
-.create-activity-container {
-  max-width: 800px;
-  margin: 20px auto;
-}
-
-.form-card {
-  padding: 20px;
-}
-
-.card-header {
-  font-size: 18px;
-  font-weight: bold;
-}
-</style>
+<style scoped src="@/styles/activity-create.css"></style>

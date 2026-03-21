@@ -94,7 +94,7 @@
               </span>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                  <el-dropdown-item command="profile" v-if="userStore.role !== 'ADMIN'">个人中心</el-dropdown-item>
                   <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -122,7 +122,7 @@ import { useUserStore } from '@/store/user';
 import { ElMessageBox } from 'element-plus';
 import { 
   Monitor, Odometer, Calendar, Star, Briefcase, User, Expand, Fold, ArrowDown, Close,
-  Search, Bell, Setting, Stamp, UserFilled, Reading, EditPen
+  Search, Bell, Setting, Stamp, UserFilled, Reading, EditPen, Warning, Trophy
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -136,6 +136,7 @@ const volunteerMenu = [
   { index: '/dashboard', icon: Odometer, title: '仪表盘' },
   { index: '/home', icon: Search, title: '志愿活动' },
   { index: '/my-activity', icon: Star, title: '我的活动' },
+  { index: '/points', icon: Trophy, title: '积分明细' },
   { index: '/stories', icon: Reading, title: '志愿故事' },
   { index: '/message', icon: Bell, title: '消息中心' },
   { index: '/profile', icon: User, title: '个人中心' }
@@ -151,10 +152,10 @@ const organizerMenu = [
 
 const adminMenu = [
   { index: '/statistics', icon: Odometer, title: '数据看板' },
-  { index: '/admin/users', icon: UserFilled, title: '用户管理' },
+  { index: '/admin/user-manage', icon: UserFilled, title: '用户管理' },
   { index: '/admin/audit', icon: Stamp, title: '活动审核' },
-  { index: '/message', icon: Bell, title: '系统公告' },
-  { index: '/profile', icon: User, title: '管理员中心' }
+  { index: '/admin/violation', icon: Warning, title: '违规处理' },
+  { index: '/message', icon: Bell, title: '系统公告' }
 ]
 
 const currentMenu = computed(() => {

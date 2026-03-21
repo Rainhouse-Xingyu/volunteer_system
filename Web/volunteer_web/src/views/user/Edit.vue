@@ -249,6 +249,11 @@ const confirmCrop = () => {
 
 
 onMounted(async () => {
+  if (role === 'ADMIN') {
+    ElMessage.warning('管理员不允许修改个人信息')
+    router.replace('/dashboard')
+    return
+  }
   try {
     let res
     if (role === 'VOLUNTEER') {
@@ -322,127 +327,4 @@ const onSubmit = async () => {
 }
 </script>
 
-<style scoped>
-.user-edit-container {
-    padding: 24px;
-    max-width: 800px;
-    margin: 0 auto;
-}
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-.page-header h2 {
-    margin: 0;
-    font-size: 24px;
-    color: #303133;
-    font-weight: 600;
-}
-
-.edit-card {
-    border-radius: 8px;
-    border: none; /* Element Plus card has border by default, keep it or remove to match Me.vue */
-}
-
-.edit-form {
-    padding: 10px;
-}
-
-.form-section {
-    margin-bottom: 32px;
-}
-.form-section h3 {
-    margin-bottom: 24px;
-    padding-left: 12px;
-    border-left: 4px solid #409EFF; /* Element Plus Primary Color */
-    font-size: 18px;
-    color: #303133;
-    line-height: 1;
-}
-
-.form-actions {
-    margin-top: 40px;
-    display: flex;
-    justify-content: center;
-}
-.save-btn {
-    width: 200px;
-}
-
-.cropper-wrapper {
-  height: 400px;
-  width: 100%;
-}
-
-/* Avatar Styling */
-.avatar-cell-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 0;
-    margin-bottom: 24px;
-    background: #f5f7fa;
-    border-radius: 8px;
-}
-.avatar-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #606266;
-    margin-bottom: 16px;
-}
-.avatar-component-container {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-.avatar-uploader :deep(.el-upload) {
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    display: block; /* Make it block to contain children properly */
-}
-.avatar-content-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-.avatar-circle {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    background-color: #ffffff;
-    overflow: hidden;
-    margin-bottom: 12px;
-    border: 2px solid #ffffff;
-    transition: all 0.2s;
-    display: flex; /* Center placeholder icon */
-    justify-content: center;
-    align-items: center;
-}
-.avatar-circle:hover {
-    border-color: #409EFF;
-    opacity: 0.9;
-}
-.avatar-image-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.upload-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #f2f3f5;
-}
-.avatar-hint {
-    font-size: 13px;
-    color: #909399;
-    padding: 4px 12px;
-}
-</style>
+<style scoped src="@/styles/user-edit.css"></style>

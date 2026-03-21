@@ -9,7 +9,7 @@ public interface UserService extends IService<User> {
     /**
      * 分页查询所有用户
      */
-    IPage<User> getUserList(Page<User> page, String role);
+    IPage<User> getUserList(Page<User> page, String role, String keyword);
 
     /**
      * 禁用或启用用户相关

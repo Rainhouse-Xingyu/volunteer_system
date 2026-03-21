@@ -79,7 +79,24 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
     public IPage<Activity> getPublishedActivities(int current, int size) {
         Page<Activity> page = new Page<>(current, size);
         // 使用 Mapper 自定义 SQL 查询，确保严格过滤 status = 1
-        return baseMapper.selectPublishedActivities(page);
+        IPage<Activity> result = baseMapper.selectPublishedActivities(page);
+        
+        // 填充发起组织信息
+        if (result.getRecords() != null && !result.getRecords().isEmpty()) {
+            for (Activity activity : result.getRecords()) {
+                if (activity.getOrganizerId() != null) {
+                    com.volunteer.entity.User user = userMapper.selectById(activity.getOrganizerId());
+                    if (user != null) {
+                        String name = (user.getNickname() != null && !user.getNickname().isEmpty()) 
+                                    ? user.getNickname() 
+                                    : user.getUsername();
+                        activity.setOrganizerName(name);
+                        activity.setOrganizerAvatar(user.getAvatarUrl());
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     @Override
@@ -109,7 +126,26 @@ public class ActivityServiceImpl extends ServiceImpl<ActivityMapper, Activity> i
         // 按时间倒序
         queryWrapper.orderByDesc(Activity::getCreatedAt);
         
-        return this.page(page, queryWrapper);
+        IPage<Activity> resultPage = this.page(page, queryWrapper);
+
+        // 填充发起组织信息
+        if (resultPage.getRecords() != null && !resultPage.getRecords().isEmpty()) {
+            for (Activity activity : resultPage.getRecords()) {
+                if (activity.getOrganizerId() != null) {
+                    com.volunteer.entity.User user = userMapper.selectById(activity.getOrganizerId());
+                    if (user != null) {
+                        // 优先显示昵称，没有则显示用户名
+                        String name = (user.getNickname() != null && !user.getNickname().isEmpty()) 
+                                    ? user.getNickname() 
+                                    : user.getUsername();
+                        activity.setOrganizerName(name);
+                        activity.setOrganizerAvatar(user.getAvatarUrl());
+                    }
+                }
+            }
+        }
+        
+        return resultPage;
     }
 
     @Override

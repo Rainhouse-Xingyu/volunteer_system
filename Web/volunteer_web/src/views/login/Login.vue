@@ -32,7 +32,7 @@
 
           <div class="form-options">
             <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-            <el-link type="primary" :underline="false">忘记密码？</el-link>
+            <el-link type="primary" :underline="false" @click="toForgotPassword">忘记密码？</el-link>
           </div>
 
           <el-form-item>
@@ -53,55 +53,17 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useLogin } from '@/hooks/useLogin';
 import { User, Lock, Monitor } from '@element-plus/icons-vue';
 
+const router = useRouter();
 const { form, isLoading, handleLogin, toRegister } = useLogin();
 const rememberMe = ref(false);
+
+const toForgotPassword = () => {
+    router.push('/forgot-password');
+}
 </script>
 
-<style scoped>
-.login-container {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  background-color: #f0f2f5;
-  overflow: hidden;
-}
-
-.login-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  z-index: 0;
-}
-
-.login-content {
-  z-index: 1;
-  position: relative;
-}
-
-.login-card {
-  width: 420px;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.login-header {
-  text-align: center;
-  padding: 10px 0;
-}
-
-.form-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-</style>
+<style scoped src="@/styles/login.css"></style>

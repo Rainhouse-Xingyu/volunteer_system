@@ -94,7 +94,7 @@ public class NewsController {
     /**
      * 资讯详情
      */
-    @GetMapping("/{id}")
+    @GetMapping({ "/{id}", "/detail/{id}" })
     public Result<News> detail(@PathVariable Integer id) {
         News news = newsService.getById(id);
         if (news == null) {

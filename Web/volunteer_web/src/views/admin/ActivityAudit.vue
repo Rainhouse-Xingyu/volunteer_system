@@ -73,9 +73,10 @@
                     <el-tag type="success">招募中</el-tag>
                 </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column label="操作" width="220" fixed="right">
                  <template #default="{ row }">
                     <el-button size="small" @click="viewDetail(row)">查看详情</el-button>
+                    <el-button size="small" type="primary" plain @click="handleExportActivityReport(row)">导出报表</el-button>
                 </template>
             </el-table-column>
         </el-table>
@@ -98,13 +99,13 @@
             </el-table-column>
              <el-table-column label="状态" width="100">
                 <template #default>
-                    <el-tag type="danger">已驳回</el-tag>
+                    <el-tag type="info">已驳回</el-tag>
                 </template>
             </el-table-column>
-             <el-table-column label="操作" width="120" fixed="right">
-                <template #default="{ row }">
-                   <!-- Re-audit logic if needed, or just view -->
-                   <el-button size="small" @click="viewDetail(row)">查看详情</el-button>
+             <el-table-column label="操作" width="220" fixed="right">
+                 <template #default="{ row }">
+                    <el-button size="small" @click="viewDetail(row)">查看详情</el-button>
+                     <el-button size="small" type="primary" plain @click="handleExportActivityReport(row)">导出报表</el-button>
                 </template>
             </el-table-column>
         </el-table>
@@ -152,7 +153,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getActivityList, auditActivity } from '@/api/admin'
+import { getActivityList, auditActivity, exportActivityReport } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -254,6 +255,30 @@ const handleAudit = (row, status) => {
 const handleAuditInDialog = (status) => {
     if (currentItem.value) {
         handleAudit(currentItem.value, status)
+    }
+}
+
+const handleExportActivityReport = async (row) => {
+    try {
+        const res = await exportActivityReport(row.activityId)
+         if (!res) {
+             ElMessage.error('没有数据')
+             return
+         }
+        // Assuming success returns the blob
+        const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `活动报表_${row.title || row.activityId}.xlsx`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        ElMessage.success('导出成功')
+    } catch (error) {
+        console.error('Export error:', error)
+        ElMessage.error('导出失败')
     }
 }
 

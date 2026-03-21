@@ -29,6 +29,12 @@ public class LoginServiceImpl implements LoginService {
     
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private com.volunteer.mapper.VolunteerProfileMapper volunteerProfileMapper;
+
+    @Autowired
+    private com.volunteer.mapper.OrganizerProfileMapper organizerProfileMapper;
     
     @Autowired
     private JwtUtils jwtUtils;
@@ -111,8 +117,35 @@ public class LoginServiceImpl implements LoginService {
         return token;
     }
 
-    @Override
-    public String register(RegisterDTO registerDTO) {
+    @Override    public void resetPassword(com.volunteer.dto.ResetPasswordDTO resetPasswordDTO) {
+        // 1. 查询用户
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, resetPasswordDTO.getUsername()));
+        if (user == null) {
+            throw new ServiceException("用户不存在");
+        }
+
+        // 2. 及其验证信息
+        if ("volunteer".equals(user.getRole())) {
+             com.volunteer.entity.VolunteerProfile profile = volunteerProfileMapper.selectById(user.getUserId());
+             if (profile == null || profile.getPhone() == null || !profile.getPhone().equals(resetPasswordDTO.getSecurityAnswer())) {
+                 throw new ServiceException("验证失败：预留手机号不匹配");
+             }
+        } else if ("organizer".equals(user.getRole())) {
+             com.volunteer.entity.OrganizerProfile profile = organizerProfileMapper.selectById(user.getUserId());
+             if (profile == null || profile.getOrgName() == null || !profile.getOrgName().equals(resetPasswordDTO.getSecurityAnswer())) {
+                 throw new ServiceException("验证失败：组织名称不匹配");
+             }
+        } else {
+             throw new ServiceException("该账号角色不支持自助重置密码，请联系管理员");
+        }
+        
+        // 3. 更新密码
+        user.setPassword(DigestUtil.md5Hex(resetPasswordDTO.getNewPassword()));
+        userMapper.updateById(user);
+    }
+
+    @Override    public String register(RegisterDTO registerDTO) {
         // 1. 检查用户名是否存在
         User existUser = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, registerDTO.getUsername()));

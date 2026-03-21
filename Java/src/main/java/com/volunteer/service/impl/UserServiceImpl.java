@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     @Override
-    public IPage<User> getUserList(Page<User> page, String role) {
+    public IPage<User> getUserList(Page<User> page, String role, String keyword) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         // 排除管理员自己
         queryWrapper.ne(User::getRole, "admin");
@@ -24,6 +24,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             queryWrapper.eq(User::getRole, role);
         }
         
+        if (StringUtils.hasText(keyword)) {
+            queryWrapper.and(wrapper -> wrapper
+                .like(User::getUsername, keyword)
+                .or()
+                .like(User::getNickname, keyword));
+        }
+
         // 隐藏密码字段
         queryWrapper.select(User.class, info -> !info.getColumn().equals("password"));
         

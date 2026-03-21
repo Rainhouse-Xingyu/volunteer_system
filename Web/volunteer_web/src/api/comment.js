@@ -8,6 +8,14 @@ export function getActivityComments(activityId) {
   })
 }
 
+// 获取资讯/故事的所有评论
+export function getNewsComments(newsId) {
+    return request({
+      url: `/comments/news/${newsId}`,
+      method: 'get'
+    })
+  }
+
 // 志愿者发表评论
 export function postComment(data) {
   return request({
@@ -23,4 +31,13 @@ export function getMyComments() {
     url: '/comments/volunteer/my-comments',
     method: 'get'
   })
+}
+
+// 举报评论
+export function reportComment(data) {
+    return request({
+      url: '/comments/report',
+      method: 'post',
+      data
+    })
 }

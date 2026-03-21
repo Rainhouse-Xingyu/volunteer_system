@@ -127,19 +127,46 @@
             <el-button plain class="cancel-btn" @click="closeCheckIn">取消</el-button>
         </div>
     </el-dialog>
+
+    <!-- Completion Dialog -->
+    <el-dialog v-model="showCompleteDialog" title="提交完结证明" width="500px">
+        <el-alert title="请上传1-3张活动现场照片作为完结证明" type="info" :closable="false" show-icon style="margin-bottom: 20px;" />
+        
+        <el-upload
+            v-model:file-list="fileList"
+            action="/api/file/upload"
+            list-type="picture-card"
+            :limit="3"
+            :on-exceed="handleExceed"
+            :before-upload="beforeUpload"
+            :on-success="handleUploadSuccess"
+            :headers="{ Authorization: userStore.token ? 'Bearer ' + userStore.token : '' }"
+            accept="image/*"
+        >
+            <el-icon><Plus /></el-icon>
+        </el-upload>
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="showCompleteDialog = false">取消</el-button>
+                <el-button type="primary" @click="submitCompletion" :loading="processing">提交完成</el-button>
+            </span>
+        </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Calendar, Check, Timer, Location, User, Clock, Star, Search } from '@element-plus/icons-vue'
+import { Calendar, Check, Timer, Location, User, Clock, Star, Search, Plus } from '@element-plus/icons-vue'
 import { getMyRegistrations, cancelRegistration, checkIn, completeActivity } from '@/api/activity' 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Html5QrcodeScanner } from "html5-qrcode"
+import { useUserStore } from '@/store/user'
 import dayjs from 'dayjs'
 
 const router = useRouter()
+const userStore = useUserStore()
 const activeTab = ref('upcoming')
 const activityList = ref([])
 const loading = ref(false)
@@ -224,27 +251,81 @@ const closeCheckIn = () => {
     showCheckIn.value = false
 }
 
+const showCompleteDialog = ref(false)
+const processing = ref(false)
+const fileList = ref([])
+const currentItem = ref(null)
+
 const handleComplete = (item) => {
-    ElMessageBox.confirm('确认将该活动标记为已完成?', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'info'
-    }).then(async () => {
-        try {
-            const res = await completeActivity(item.regId)
-            if (res.code === 200) {
-                ElMessage.success('操作成功')
-                fetchActivities()
-            } else {
-                ElMessage.error(res.message || '操作失败')
-            }
-        } catch (e) {
-            console.error(e)
-            ElMessage.error('网络错误')
-        }
-    })
+    currentItem.value = item
+    fileList.value = []
+    showCompleteDialog.value = true
 }
 
+const handleExceed = (files) => {
+    ElMessage.warning('最多只允许上传3张照片')
+}
+
+const beforeUpload = (file) => {
+    // 限制图片大小
+    if (file.size / 1024 / 1024 > 5) {
+        ElMessage.error('图片大小不能超过5MB')
+        return false
+    }
+    return true
+}
+
+const handleUploadSuccess = (response, uploadFile) => {
+    if (response.code !== 200) {
+        ElMessage.error(response.message || '上传失败')
+        // remove failed file
+        const index = fileList.value.indexOf(uploadFile)
+        if (index !== -1) fileList.value.splice(index, 1)
+    }
+}
+
+const submitCompletion = async () => {
+    if (fileList.value.length === 0) {
+        ElMessage.warning('请至少上传一张照片')
+        return
+    }
+    
+    // Extract URLs
+    const photos = []
+    for (const file of fileList.value) {
+        if (file.response && file.response.code === 200) {
+            photos.push(file.response.data)
+        } else if (file.url) {
+            photos.push(file.url)
+        }
+    }
+    
+    if (photos.length < 1) {
+        ElMessage.warning('照片未上传成功或为空')
+        return
+    }
+    if (photos.length > 3) {
+        ElMessage.warning('照片最多上传3张')
+        return
+    }
+    
+    processing.value = true
+    try {
+        const res = await completeActivity(currentItem.value.regId, { photos })
+        if (res.code === 200) {
+            ElMessage.success('提交成功')
+            showCompleteDialog.value = false
+            fetchActivities()
+        } else {
+            ElMessage.error(res.message || '操作失败')
+        }
+    } catch (e) {
+        console.error(e)
+        ElMessage.error('网络错误')
+    } finally {
+        processing.value = false
+    }
+}
 
 // Summary stats
 const stats = ref({
@@ -408,151 +489,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.my-activities-container {
-    padding: 24px;
-}
-.page-header h2 {
-    font-size: 24px;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-.subtitle {
-  color: #606266;
-  font-size: 14px;
-  margin-top: 0;
-  margin-bottom: 24px;
-}
-.summary-cards {
-    margin-bottom: 32px;
-}
-.summary-card {
-    border-radius: 12px;
-    border: none;
-}
-.summary-content {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-.summary-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-}
-.blue-bg { background: #e6f7ff; color: #1890ff; }
-.green-bg { background: #f6ffed; color: #52c41a; }
-.purple-bg { background: #f9f0ff; color: #722ed1; }
-
-.label {
-    font-size: 13px;
-    color: #909399;
-    margin-bottom: 4px;
-}
-.value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #303133;
-}
-
-.activity-tabs {
-    margin-bottom: 24px;
-}
-.activity-tabs :deep(.el-tabs__item) {
-    font-size: 16px;
-}
-
-.activity-list-item {
-    margin-bottom: 16px;
-    border-radius: 12px;
-    border: 1px solid #ebeef5;
-}
-.item-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.item-main {
-    flex: 1;
-}
-.item-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-.item-title {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-}
-.item-org {
-    color: #909399;
-    font-size: 14px;
-    margin-bottom: 16px;
-}
-.item-meta {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    color: #606266;
-    font-size: 14px;
-}
-.meta-part {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.item-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 120px;
-    margin-left: 24px;
-}
-.item-actions .el-button {
-    margin: 0;
-    width: 100%;
-}
-
-.mb-4 {
-    margin-bottom: 16px;
-}
-
-@media screen and (max-width: 768px) {
-    .my-activities-container {
-        padding: 16px;
-    }
-    .summary-content {
-        flex-direction: row; /* Keep row for icon and text usually looks better even on mobile unless very narrow */
-        gap: 12px;
-    }
-    .item-content {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .item-actions {
-        margin-left: 0;
-        margin-top: 16px;
-        width: 100%;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .item-actions .el-button {
-         flex: 1;
-         min-width: 45%; /* Ensure buttons don't get too small */
-    }
-    .item-meta {
-        grid-template-columns: 1fr;
-    }
-    .item-header {
-        flex-wrap: wrap;
-    }
-}
-</style>
+<style scoped src="@/styles/activity-my.css"></style>

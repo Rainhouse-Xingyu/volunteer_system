@@ -6,3 +6,10 @@ export function getOverview() {
         method: 'get'
     })
 }
+
+export function getChartsData() {
+    return request({
+        url: '/admin/statistics/charts',
+        method: 'get'
+    })
+}

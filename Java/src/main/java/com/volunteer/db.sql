@@ -180,3 +180,24 @@ CREATE TABLE `news` (
   KEY `fk_news_org` (`organizer_id`),
   CONSTRAINT `fk_news_org` FOREIGN KEY (`organizer_id`) REFERENCES `users` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='资讯/文章表';
+
+-- ----------------------------
+-- Table structure for comment_reports
+-- ----------------------------
+DROP TABLE IF EXISTS `comment_reports`;
+CREATE TABLE `comment_reports` (
+  `report_id` int NOT NULL AUTO_INCREMENT COMMENT '举报ID',
+  `comment_id` bigint NOT NULL COMMENT '被举报的评论ID',
+  `reporter_id` int NOT NULL COMMENT '举报人ID',
+  `reason` varchar(255) DEFAULT NULL COMMENT '举报原因',
+  `detail` text COMMENT '详细说明',
+  `status` tinyint DEFAULT '0' COMMENT '处理状态: 0-待处理, 1-已处理(确认违规), 2-已驳回',
+  `handle_remark` varchar(255) DEFAULT NULL COMMENT '处理备注',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '举报时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`report_id`),
+  KEY `fk_cr_comment` (`comment_id`),
+  KEY `fk_cr_reporter` (`reporter_id`),
+  CONSTRAINT `fk_cr_comment` FOREIGN KEY (`comment_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_cr_reporter` FOREIGN KEY (`reporter_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='评论举报表';
