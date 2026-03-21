@@ -70,17 +70,6 @@
           </div>
         </el-card>
 
-        <!-- Volunteer Hours Card -->
-        <el-card shadow="hover" class="ranking-card">
-          <h3>志愿时长</h3>
-          <div class="ranking-content">
-            <div class="rank-icon-wrapper">
-              <el-icon :size="48" color="#faad14"><Timer /></el-icon>
-            </div>
-            <div class="rank-number">{{ stats.volunteerHours || 0 }}</div>
-            <div class="rank-desc">累计志愿服务时长 (小时)</div>
-          </div>
-        </el-card>
       </div>
     </div>
   </div>

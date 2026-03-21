@@ -5,7 +5,7 @@
       <el-col :span="6">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
-            <el-avatar :size="50" :src="userStore.userInfo?.avatarUrl" class="user-avatar" :icon="User" />
+            <el-avatar :size="50" :src="userStore.userInfo?.avatar || userStore.userInfo?.avatarUrl" class="user-avatar" :icon="User" />
             <div class="stats-info">
               <div class="stats-value">你好</div>
               <div class="stats-label">{{ userStore.userInfo?.realName || userStore.userInfo?.nickname || userStore.userInfo?.username || '志愿者' }}</div>
